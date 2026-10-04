@@ -1,0 +1,16 @@
+{
+  "revision": 1,
+  "objects": 1923,
+  "mesh_vertices": 455406,
+  "source": "all original procedural geometry",
+  "renderer": "BLENDER_EEVEE",
+  "config": {
+    "skin": "E8B5A0",
+    "eye_width": 0.315,
+    "iris_radius": 0.121,
+    "nose_depth": 1.0,
+    "head_tilt": 0.095,
+    "hair_roughness": 0.38,
+    "exposure": 0.1
+  }
+}

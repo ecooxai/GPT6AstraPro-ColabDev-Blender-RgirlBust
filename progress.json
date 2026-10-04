@@ -1,0 +1,121 @@
+{
+  "revision": 8,
+  "score": 59.0,
+  "status": "Continuous garment and restrained eye reflections",
+  "updated": "2026-10-04T12:12:29+00:00",
+  "project": "/home/dev/project/3d/GPT6AstraPro_ColabDev_Blender_RgirlBust",
+  "build": "/build/GPT6AstraPro_ColabDev_Blender_RgirlBust",
+  "iterations": [
+    {
+      "id": 1,
+      "score": 10.0,
+      "title": "First build \u2014 pose-origin failure found",
+      "review": "Visual inspection: the head and hair were displaced above the neck by an unupdated parent transform. Shirt surface interpolation also produces bands. Not an acceptable likeness; correcting structure before detail.",
+      "image": "build/revisions/r001/front.png",
+      "path": "/build/GPT6AstraPro_ColabDev_Blender_RgirlBust/revisions/r001/front.png"
+    },
+    {
+      "id": 2,
+      "score": 28.0,
+      "title": "Connected bust \u2014 anatomy and hair defects identified",
+      "review": "Head transform is corrected. Eyes remain oversized and protrude unnaturally; scalp intersects the forehead; hair reads as rigid bright strips. Lower face and shirt opening need refinement. Reviewed front and close-up.",
+      "image": "build/revisions/r002/front.png",
+      "path": "/build/GPT6AstraPro_ColabDev_Blender_RgirlBust/revisions/r002/front.png"
+    },
+    {
+      "id": 3,
+      "score": 38.0,
+      "title": "Inset eyes and clean neckline \u2014 silhouette review",
+      "review": "Scalp intersections are reduced and the neckline is clean. Side view reveals an overly projecting nose and hair foundation clipping. Front curtain hides too much of the cheeks. Browser tests pass on desktop and mobile without JavaScript errors.",
+      "image": "build/revisions/r003/front.png",
+      "path": "/build/GPT6AstraPro_ColabDev_Blender_RgirlBust/revisions/r003/front.png"
+    },
+    {
+      "id": 4,
+      "score": 46.0,
+      "title": "Wider facial reveal and 29 grouped objects",
+      "review": "Cheeks are visible, the nose projection is reduced, and all four views render. Original objects were batched from 2,608 to 29. Remaining issues: eyelid seams, sparse forward hair mass, smooth scalp patches, and a discontinuity in rear hair curvature.",
+      "image": "build/revisions/r004/front.png",
+      "path": "/build/GPT6AstraPro_ColabDev_Blender_RgirlBust/revisions/r004/front.png"
+    },
+    {
+      "id": 5,
+      "score": 48.0,
+      "title": "Fuller waves \u2014 close-up shading defects found",
+      "review": "The hair silhouette is fuller, but close-up inspection reveals conspicuous eyelid seams and artificial scalp coverage. Source inspection identified reversed lid, iris, and hair-lock normals. This remains a stylized approximation, not a photorealistic match.",
+      "image": "build/revisions/r005/front.png",
+      "path": "/build/GPT6AstraPro_ColabDev_Blender_RgirlBust/revisions/r005/front.png"
+    },
+    {
+      "id": 6,
+      "score": 56.0,
+      "title": "Continuous lids and a natural forehead opening",
+      "review": "Reversing the orbital normals removes the conspicuous outer eyelid seam. The higher hairline exposes the forehead, and nostrils are now recessed geometry. Remaining issues are doll-like eyes, coarse bangs, prominent nostril apertures, and insufficiently natural hair detail.",
+      "image": "build/revisions/r006/front.png",
+      "path": "/build/GPT6AstraPro_ColabDev_Blender_RgirlBust/revisions/r006/front.png"
+    },
+    {
+      "id": 7,
+      "score": 57.0,
+      "title": "Visible ear and refined gaze \u2014 reflections too strong",
+      "review": "The left ear and folded collar are clearer, and the iris no longer leaks below the lid. Eye clearcoat creates overly large white reflections; the fringe still forms dense strips. The three-quarter view reveals an intersecting shoulder/sleeve join.",
+      "image": "build/revisions/r007/front.png",
+      "path": "/build/GPT6AstraPro_ColabDev_Blender_RgirlBust/revisions/r007/front.png"
+    },
+    {
+      "id": 8,
+      "score": 59.0,
+      "title": "Continuous garment and restrained eye reflections",
+      "review": "The shirt now has one continuous torso-and-sleeve surface, and eye reflections are less dominant. All five views were rendered. Rear inspection still shows rigid pointed hair ends; the front needs softer roots, fuller lips, and more faithful hair balance.",
+      "image": "build/revisions/r008/front.png",
+      "path": "/build/GPT6AstraPro_ColabDev_Blender_RgirlBust/revisions/r008/front.png"
+    }
+  ],
+  "files": [
+    {
+      "label": "Editable Blender scene",
+      "url": "https://github.com/ecooxai/GPT6AstraPro-ColabDev-Blender-RgirlBust/releases/download/review-r008/GPT6AstraPro_ColabDev_Blender_RgirlBust.blend",
+      "path": "/build/GPT6AstraPro_ColabDev_Blender_RgirlBust/latest/GPT6AstraPro_ColabDev_Blender_RgirlBust.blend",
+      "size": "64.8 MB"
+    },
+    {
+      "label": "Interactive 3D model \u00b7 GLB",
+      "url": "build/latest/GPT6AstraPro_ColabDev_Blender_RgirlBust.glb",
+      "path": "/build/GPT6AstraPro_ColabDev_Blender_RgirlBust/latest/GPT6AstraPro_ColabDev_Blender_RgirlBust.glb",
+      "size": "41.6 MB"
+    },
+    {
+      "label": "EEVEE portrait \u00b7 PNG",
+      "url": "build/latest/GPT6AstraPro_ColabDev_Blender_RgirlBust_portrait.png",
+      "path": "/build/GPT6AstraPro_ColabDev_Blender_RgirlBust/latest/GPT6AstraPro_ColabDev_Blender_RgirlBust_portrait.png",
+      "size": "1.0 MB"
+    }
+  ],
+  "notes": "Single-reference reconstruction. All character geometry and materials are original. No reference-photo texture is used. The score is a subjective visual review, not an external similarity measurement. Requested iteration budget: 20,000; only completed, inspected revisions are counted.",
+  "portrait": "build/latest/GPT6AstraPro_ColabDev_Blender_RgirlBust_portrait.png",
+  "portraitPath": "/build/GPT6AstraPro_ColabDev_Blender_RgirlBust/latest/GPT6AstraPro_ColabDev_Blender_RgirlBust_portrait.png",
+  "model": "build/latest/GPT6AstraPro_ColabDev_Blender_RgirlBust.glb",
+  "modelPath": "/build/GPT6AstraPro_ColabDev_Blender_RgirlBust/latest/GPT6AstraPro_ColabDev_Blender_RgirlBust.glb",
+  "views": [
+    {
+      "label": "Facial anatomy detail",
+      "url": "build/revisions/r008/face.png",
+      "path": "/build/GPT6AstraPro_ColabDev_Blender_RgirlBust/revisions/r008/face.png"
+    },
+    {
+      "label": "Three-quarter inspection",
+      "url": "build/revisions/r008/three-quarter.png",
+      "path": "/build/GPT6AstraPro_ColabDev_Blender_RgirlBust/revisions/r008/three-quarter.png"
+    },
+    {
+      "label": "Side silhouette",
+      "url": "build/revisions/r008/side.png",
+      "path": "/build/GPT6AstraPro_ColabDev_Blender_RgirlBust/revisions/r008/side.png"
+    },
+    {
+      "label": "Rear hair construction",
+      "url": "build/revisions/r008/back.png",
+      "path": "/build/GPT6AstraPro_ColabDev_Blender_RgirlBust/revisions/r008/back.png"
+    }
+  ]
+}
