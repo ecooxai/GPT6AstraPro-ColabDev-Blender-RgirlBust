@@ -5,6 +5,12 @@ p=Path(__file__).resolve().parents[1];b=(p/'build').resolve();prefix='GPT6AstraP
 a=argparse.ArgumentParser();a.add_argument('revision',type=int);a.add_argument('--score',type=float,required=True);a.add_argument('--title',required=True);a.add_argument('--review',required=True);args=a.parse_args()
 rev=b/'revisions'/f'r{args.revision:03d}';latest=b/'latest';front=rev/'front.png'
 assert front.exists(),f'Cannot publish a missing render: {front}'
+for extension in ['.blend','.glb']:
+ source=rev/(prefix+extension)
+ if source.exists():
+  temporary=latest/(prefix+extension+'.tmp')
+  shutil.copy2(source,temporary)
+  temporary.replace(latest/(prefix+extension))
 shutil.copy2(front,latest/(prefix+'_portrait.png'))
 manifest=p/'preview/progress.json';d=json.loads(manifest.read_text())
 d.update(revision=args.revision,score=args.score,status=args.title,updated=datetime.datetime.now(datetime.timezone.utc).isoformat(timespec='seconds'),project=str(p),build=str(b),portrait=f'build/latest/{prefix}_portrait.png',portraitPath=str(latest/(prefix+'_portrait.png')))

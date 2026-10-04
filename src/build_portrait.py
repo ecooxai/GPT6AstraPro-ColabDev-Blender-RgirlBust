@@ -4,7 +4,7 @@ Front is -Y, up is Z. Units are artistic portrait units, not measured anatomy.
 """
 import bpy, math, random, json, sys, argparse, os, time
 from pathlib import Path
-from mathutils import Vector
+from mathutils import Vector, Matrix
 from mathutils.geometry import delaunay_2d_cdt
 import bmesh
 from math import sin, cos, pi, sqrt, exp
@@ -60,7 +60,7 @@ nt=skin.node_tree;p=nt.nodes.get('Principled BSDF')
 vcol=nt.nodes.new('ShaderNodeVertexColor');vcol.layer_name='Complexion';nt.links.new(vcol.outputs['Color'],p.inputs['Base Color'])
 noise=nt.nodes.new('ShaderNodeTexNoise');noise.inputs['Scale'].default_value=165;noise.inputs['Detail'].default_value=2.3;noise.inputs['Roughness'].default_value=.7
 bump=nt.nodes.new('ShaderNodeBump');bump.inputs['Strength'].default_value=.08;bump.inputs['Distance'].default_value=.006;nt.links.new(noise.outputs['Fac'],bump.inputs['Height']);nt.links.new(bump.outputs['Normal'],p.inputs['Normal'])
-plain_skin=mat('SKIN | ears neck and chest','E8B5A0',.49,sub=.085)
+plain_skin=mat('SKIN | ears neck and chest',CFG.get('skin','E8B2A0'),.49,sub=.085)
 for node in [noise]: pass
 nose_dark=mat('Nostrils | soft occlusion','59352D',.75)
 lip=mat('LIPS | natural rose','BB7472',.38,sub=.055)
@@ -69,7 +69,7 @@ lip_seam=mat('Lips | subtle central separation','6E3E3D',.64)
 crease=mat('Skin | subtle warm crease','BA8271',.61)
 waterline=mat('Lid margin | muted rose','D2A89A',.44,sub=.04)
 lashmat=mat('Lashes | dark brown','241714',.53)
-browmat=mat('Brows | individual tapered hairs','645047',.72)
+browmat=mat('Brows | individual tapered hairs','513B30',.72)
 white=mat('Sclera | warm ivory','F0E1D7',.27,sub=.025)
 nt=white.node_tree;vc=nt.nodes.new('ShaderNodeVertexColor');vc.layer_name='ScleraTint';nt.links.new(vc.outputs['Color'],nt.nodes.get('Principled BSDF').inputs['Base Color'])
 irismat=mat('Iris | original radial vertex pigment','573725',.26)
@@ -78,7 +78,7 @@ pupil=mat('Pupils | near black','080707',.19)
 catchmat=mat('Corneal catchlight','FFF9EF',.09)
 pc=catchmat.node_tree.nodes.get('Principled BSDF');pc.inputs['Emission Color'].default_value=(.7,.65,.6,1);pc.inputs['Emission Strength'].default_value=.05
 for ocular_material in [white,irismat]:
- p=ocular_material.node_tree.nodes.get('Principled BSDF');p.inputs['Coat Weight'].default_value=.75;p.inputs['Coat Roughness'].default_value=.065;p.inputs['Roughness'].default_value=.24
+ p=ocular_material.node_tree.nodes.get('Principled BSDF');p.inputs['Coat Weight'].default_value=.10;p.inputs['Coat Roughness'].default_value=.09;p.inputs['Roughness'].default_value=.29;p.inputs['Specular IOR Level'].default_value=.14
 hairmats=[]
 for name,c in [('espresso','241A19'),('walnut','30211E'),('warm strands','3E2C26'),('cool sheen','382C2B'),('fine glints','4A3631')]:
  m=mat('HAIR | '+name,c,CFG.get('hair_roughness',.38));p=m.node_tree.nodes.get('Principled BSDF');p.inputs['Anisotropic'].default_value=.55;p.inputs['Specular IOR Level'].default_value=.20
@@ -169,7 +169,7 @@ def complexion(x,z):
  color=tuple(base[i]*(1-k)+blush[i]*k for i in range(3))
  t=(abs(x)-.15)/.60
  if 0<t<1:
-  center=4.958+.044*sin(t*pi*.92)-.025*t;shade=.15*exp(-((z-center)/.037)**2)*sin(pi*t)**.35;root=rgb('73584C');color=tuple(color[i]*(1-shade)+root[i]*shade for i in range(3))
+  center=4.958+.044*sin(t*pi*.92)-.025*t;shade=.20*exp(-((z-center)/.037)**2)*sin(pi*t)**.35;root=rgb('73584C');color=tuple(color[i]*(1-shade)+root[i]*shade for i in range(3))
  return color
 
 # Constrained triangulation in the frontal (theta, z) parameter domain.
@@ -366,7 +366,7 @@ for s in [-1,1]:
  sphere('Ear | tragus '+str(s),(s*.965,-.165,4.34),(.040,.038,.069),plain_skin,True)
 print('ANATOMY BUILT',flush=True)
 # Neck transitions into a closed upper chest, visible through the collar opening.
-NECK=[(1.73,.82,-.40,.42),(1.96,.77,-.34,.44),(2.19,.65,-.28,.40),(2.42,.43,-.215,.36),(2.77,.34,-.175,.345),(3.13,.34,-.155,.35),(3.48,.38,-.12,.36),(3.64,.36,-.04,.35)]
+NECK=[(1.73,.82,-.40,.42),(1.96,.77,-.34,.44),(2.19,.65,-.28,.40),(2.42,.48,-.27,.36),(2.77,.43,-.24,.345),(3.13,.42,-.225,.35),(3.48,.44,-.20,.36),(3.64,.39,-.12,.35)]
 v=[];f=[]
 for j in range(65):
  z=1.73+(3.64-1.73)*j/64;w=interp(NECK,z);fr=interp(NECK,z,2);ba=interp(NECK,z,3)
@@ -381,46 +381,30 @@ for j in range(64):
 mesh('Neck | continuous throat and clavicular chest',v,f,plain_skin)
 
 TORSO=[(-.14,1.56,-.535,.49),(.0,1.65,-.58,.54),(.35,1.68,-.61,.58),(.82,1.73,-.65,.60),(1.30,1.79,-.64,.58),(1.73,1.85,-.57,.54),(2.04,1.88,-.46,.49),(2.28,1.80,-.30,.41),(2.47,1.41,-.23,.34),(2.66,.66,-.18,.26),(2.80,.46,-.17,.22)]
-def shirt_y(x,z):
- w=interp(TORSO,z);fr=interp(TORSO,z,2);ba=interp(TORSO,z,3)
- y=(fr+ba)/2-(ba-fr)/2*sqrt(max(.001,1-(x/max(.1,w))**2))
- # Low-amplitude fabric tensions originate near the placket, shoulder, and side seam.
- y-=.010*sin(13*z+4*x)*exp(-((abs(x)-.36)/.23)**2)
- y-=.014*sin(17*z-7*abs(x))*exp(-((abs(x)-1.45)/.24)**2)
- y-=.010*sin(19*z+3*x)*exp(-((z-.3)/.27)**2)
- return y
-v=[];f=[];NN=160;MM=115
+sys.path.insert(0,str(ROOT/'src'))
+from garment_surface import create_garment_surface
+garment_width,shirt_y=create_garment_surface(TORSO,interp,gauss)
+v=[];f=[];NN=224;MM=150
 for j in range(MM+1):
- z=-.14+2.94*j/MM;w=interp(TORSO,z);fr=interp(TORSO,z,2);ba=interp(TORSO,z,3)
+ z=-.14+2.94*j/MM;w=garment_width(z);fr=interp(TORSO,z,2);ba=interp(TORSO,z,3)
  opening=.44*max(0,(z-1.90)/.90);theta0=math.asin(min(.98,opening/w))
  for k in range(NN+1):
-  th=theta0+(2*pi-2*theta0)*k/NN;x=w*sin(th);y=shirt_y(x,z) if cos(th)>0 else (fr+ba)/2-(ba-fr)/2*cos(th)
+  th=theta0+(2*pi-2*theta0)*k/NN;x=w*sin(th);y=shirt_y(x,z,front=cos(th)>0)
   if cos(th)<=0:y+=.006*sin(15*z+3*x)
   v.append((x,y,z))
 for j in range(MM):
  for k in range(NN):f.append((j*(NN+1)+k,j*(NN+1)+k+1,(j+1)*(NN+1)+k+1,(j+1)*(NN+1)+k))
 f.append(tuple(range(NN,-1,-1)))
 ob=mesh('Shirt | tailored closed torso with open neckline',v,f,shirt);mod=ob.modifiers.new('Cotton thickness','SOLIDIFY');mod.thickness=.014
-# Full sleeves, open lower bust crop but closed geometrical cut ends.
-for s in [-1,1]:
- points=[(s*1.40,.035,2.44),(s*1.70,.065,2.13),(s*1.87,.08,1.65),(s*1.93,.075,1.04),(s*1.92,.075,.35),(s*1.88,.075,-.15)]
- ps=sample(points,55);v=[];f=[]
- for j,p in enumerate(ps):
-  t=j/(len(ps)-1);shoulder=.28+.72*min(1,t/.14)**.60;rx=.33*(1-.13*t)*shoulder;ry=.34*(1-.10*t)*shoulder
-  for k in range(64):
-   th=2*pi*k/64;fold=.010*sin(17*pi*t+3*th)*sin(pi*t)**2
-   v.append((p.x+(rx+fold)*cos(th),p.y+(ry+fold)*sin(th),p.z))
- for j in range(len(ps)-1):
-  for k in range(64):f.append((j*64+k,j*64+(k+1)%64,(j+1)*64+(k+1)%64,(j+1)*64+k))
- f.append(tuple(range(63,-1,-1)));f.append(tuple((len(ps)-1)*64+k for k in range(64)))
- mesh('Shirt | shoulder and sleeve '+str(s),v,[tuple(reversed(face)) for face in f],shirt)
- pts=[]
- for k in range(40):
-  t=k/39;z=2.26-.77*t;x=s*(1.54+.10*sin(t*pi));pts.append((x,shirt_y(x,z)-.008,z))
- tube('Shirt | set-in sleeve seam '+str(s),pts,.006,seammat,False,5)
+# Stitching follows the continuous torso-and-sleeve surface.
+for sign in [-1,1]:
+ points=[]
+ for k in range(44):
+  t=k/43;z=2.33-.88*t;x=sign*(1.46+.12*sin(pi*t));points.append((x,shirt_y(x,z)-.003,z))
+ tube('Shirt | tailored sleeve seam '+str(sign),points,.0035,seammat,False,5)
 # Folded collar leaves, softly curved four-sided textile surfaces.
 def collar_patch(s):
- A=Vector((s*.37,-.19,2.75));B=Vector((s*.64,-.23,2.55));C=Vector((s*.78,-.45,1.99));D=Vector((s*.19,-.50,2.10))
+ A=Vector((s*.43,-.23,2.75));B=Vector((s*.64,-.23,2.55));C=Vector((s*.78,-.45,1.99));D=Vector((s*.19,-.50,2.10))
  v=[];f=[]
  for i in range(21):
   u=i/20
@@ -439,7 +423,7 @@ collar_patch(-1);collar_patch(1)
 v=[];f=[]
 for j in range(2):
  for k in range(97):
-  th=1.20+(2*pi-2.40)*k/96;z=2.70+.03*cos(th)+j*.12;v.append((.425*sin(th),.04-.27*cos(th),z))
+  th=1.20+(2*pi-2.40)*k/96;z=2.70+.03*cos(th)+j*.12;v.append((.485*sin(th),.04-.31*cos(th),z))
 for k in range(96):f.append((k,k+1,97+k+1,97+k))
 ob=mesh('Collar | continuous rear neckband',v,f,shirt);mod=ob.modifiers.new('Collar band thickness','SOLIDIFY');mod.thickness=.018
 # Soft front placket with three-dimensional buttons and stitching.
@@ -463,6 +447,10 @@ for z in [1.58,.83,.08]:
  for dx in [-.015,.015]:
   for dz in [-.015,.015]:sphere('Button | recessed thread hole',(x+dx,y-.014,z+dz),(.007,.003,.007),threadmat,False,16,8)
  for dz in [-.015,.015]:tube('Button | sewn cross-thread',[(x-.016,y-.019,z+dz),(x+.016,y-.019,z+dz)],.0027,shirt,False,5,False)
+# Original ivory button at the open collar.
+bpy.ops.mesh.primitive_cylinder_add(vertices=32,radius=.044,depth=.014,location=(.435,-.335,2.48),rotation=(pi/2+.12,0,-.10))
+ob=bpy.context.object;ob.name='Collar | ivory neck-opening button';put(ob);ob.data.materials.append(buttonmat)
+bevel=ob.modifiers.new('Soft collar button rim','BEVEL');bevel.width=.006;bevel.segments=3
 print('CLOTHING BUILT',flush=True)
 
 # Hair. A closed scalp shell supports layered, volumetric swept locks.
@@ -548,7 +536,7 @@ def lock(name,points,width,depth=.035,fibers=FIBERS,mati=0):
   for i,(p,side,n,wi,di) in enumerate(frames):
    t=i/(len(frames)-1);wav=.0019*sin(phase+t*35)*sin(pi*t);q=p+side*(off*wi+wav)+n*(di*sqrt(max(0,1-off*off))+.002)
    pts.append(q)
-  tube('Hair fiber | '+name+' '+str(k),pts,random.uniform(.0013,.0023),fibermats[random.choices([0,1,2,3,4],[.16,.37,.21,.23,.03])[0]],True,4)
+  tube('Hair fiber | '+name+' '+str(k),pts,random.uniform(.0013,.0023)*(.43 if ('wisp' in name or 'fringe' in name) else 1),fibermats[random.choices([0,1,2,3,4],[.16,.37,.21,.23,.03])[0]],True,4)
 # Back and side curtain, descending from crown around the whole skull.
 for k in range(66):
  th=1.15+(4.79-1.15)*k/65;st=sin(th);ct=cos(th);jitter=random.uniform(-.035,.035);bottom=random.uniform(.44,1.00)+.13*ct
@@ -576,14 +564,14 @@ for sgn in [-1,1]:
    points=[(.25,.32-.82*t,6.18-.025*t),(.63,-.20-.56*t,6.02-.19*t),(1.01,-.19-.53*t,5.58-.38*t),(1.14,-.10-.31*t,4.80-.20*t)]
   lock(('left' if sgn<0 else 'right')+' crown sweep %02d'%k,points,.036+random.random()*.012,.018,8,random.choice([0,0,1,3]))
 # Wispy separate bangs: many narrow original bundles, not a few broad cards.
-for k in range(36):
- t=k/35
- points=[(.22+.17*t,-.54+.05*t,6.06-.045*t),(.10-.14*t,-.80-.014*t,5.70-.085*t),(-.07-.23*t,-.846-.010*t,5.29-.10*t),(-.17-.39*t+.015*sin(k),-.87+.05*t,4.91+.09*sin(k*1.8)**2)]
- lock('wispy swept fringe %02d'%k,points,random.uniform(.004,.007),.004,5,random.choice([0,0,1,3]))
 for k in range(14):
  t=k/13
+ points=[(.22+.17*t,-.54+.05*t,6.06-.045*t),(.10-.14*t,-.80-.014*t,5.70-.085*t),(-.07-.23*t,-.846-.010*t,5.29-.10*t),(-.17-.39*t+.015*sin(k),-.87+.05*t,4.91+.09*sin(k*1.8)**2)]
+ lock('wispy swept fringe %02d'%k,points,random.uniform(.0025,.0045),.0025,3,random.choice([0,0,1,3]))
+for k in range(7):
+ t=k/6
  points=[(.36+.025*t,-.67,5.94),(.43-.05*t,-.828,5.56),(.38-.085*t,-.857,5.20),(.22-.11*t,-.879,4.93+.14*t)]
- lock('central separated wisp %02d'%k,points,random.uniform(.003,.005),.0035,4,0)
+ lock('central separated wisp %02d'%k,points,random.uniform(.0025,.0032),.002,3,0)
 # A few thin face-framing pieces soften the edge near the left ear.
 for k in range(5):
  t=k/4
@@ -605,6 +593,13 @@ for ob in head_objs:
    if vertex.co.z>5.30:vertex.co.z+=CFG.get('crown_fullness',.34)*((vertex.co.z-5.30)/.905)**2
  if ob.name.startswith('Ear'):
   meanx=ob.location.x+sum(v.co.x for v in ob.data.vertices)/len(ob.data.vertices)*ob.scale.x;ob.location.x+=(.055 if meanx>0 else -.055);ob.location.y-=.018
+for ob in head_objs:
+ if ob.name.startswith('Ear'):
+  mean_x=ob.matrix_world.translation.x+sum(v.co.x for v in ob.data.vertices)/len(ob.data.vertices)*ob.scale.x
+  sign=1 if mean_x>0 else -1
+  pivot=Vector((sign*1.07,.035,4.40))
+  transform=Matrix.Translation(pivot)@Matrix.Rotation(sign*.34,4,'Z')@Matrix.Translation(-pivot)
+  ob.matrix_world=transform@ob.matrix_world
 # Pose is applied coherently to the complete head, ears, lids and hair.
 root=bpy.data.objects.new('Head pose | soft reference tilt',None);CHAR.objects.link(root);root.location=(0,0,3.72)
 bpy.context.view_layer.update()
@@ -684,14 +679,14 @@ scene.render.resolution_x=1000;scene.render.resolution_y=1500;scene.render.filep
 backdrop.location=Vector(VIEWS['front'][1])+(Vector(VIEWS['front'][1])-camera.location).normalized()*3.2;backdrop.rotation_euler=camera.rotation_euler
 scene['asset_origin']='Original math-authored meshes, fibers, procedural materials; no reference texture.'
 scene['review_revision']=args.revision
-bpy.ops.wm.save_as_mainfile(filepath=str(LATEST/(PREFIX+'.blend')))
+bpy.ops.wm.save_as_mainfile(filepath=str(REV/(PREFIX+'.blend')))
 if args.export:
  print('EXPORTING GLB',flush=True)
  bpy.ops.object.select_all(action='DESELECT')
  for ob in CHAR.objects:ob.select_set(True)
  bpy.context.view_layer.objects.active=next(o for o in CHAR.objects if o.type=='MESH')
  try:
-  bpy.ops.export_scene.gltf(filepath=str(LATEST/(PREFIX+'.glb')),export_format='GLB',use_selection=True,export_apply=True,export_yup=True,export_animations=False,export_cameras=False,export_lights=False,export_texcoords=False,export_normals=True,export_colors=True,export_materials='EXPORT')
+  bpy.ops.export_scene.gltf(filepath=str(REV/(PREFIX+'.glb')),export_format='GLB',use_selection=True,export_apply=True,export_yup=True,export_animations=False,export_cameras=False,export_lights=False,export_texcoords=False,export_normals=True,export_colors=True,export_materials='EXPORT')
  except Exception as e:
   print('GLB_EXPORT_ERROR',repr(e),flush=True)
 stats={'revision':args.revision,'objects':len(CHAR.objects),'authored_objects_before_batching':authored_object_count,'mesh_polygons':sum(len(o.data.polygons) for o in CHAR.objects if o.type=='MESH'),'mesh_vertices':sum(len(o.data.vertices) for o in CHAR.objects if o.type=='MESH'),'source':'all original procedural geometry','renderer':scene.render.engine,'config':CFG}

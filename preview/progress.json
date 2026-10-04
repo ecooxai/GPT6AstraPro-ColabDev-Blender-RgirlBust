@@ -1,8 +1,8 @@
 {
-  "revision": 6,
-  "score": 56.0,
-  "status": "Continuous lids and a natural forehead opening",
-  "updated": "2026-10-04T11:44:41+00:00",
+  "revision": 7,
+  "score": 57.0,
+  "status": "Visible ear and refined gaze \u2014 reflections too strong",
+  "updated": "2026-10-04T11:52:34+00:00",
   "project": "/home/dev/project/3d/GPT6AstraPro_ColabDev_Blender_RgirlBust",
   "build": "/build/GPT6AstraPro_ColabDev_Blender_RgirlBust",
   "iterations": [
@@ -53,6 +53,14 @@
       "review": "Reversing the orbital normals removes the conspicuous outer eyelid seam. The higher hairline exposes the forehead, and nostrils are now recessed geometry. Remaining issues are doll-like eyes, coarse bangs, prominent nostril apertures, and insufficiently natural hair detail.",
       "image": "build/revisions/r006/front.png",
       "path": "/build/GPT6AstraPro_ColabDev_Blender_RgirlBust/revisions/r006/front.png"
+    },
+    {
+      "id": 7,
+      "score": 57.0,
+      "title": "Visible ear and refined gaze \u2014 reflections too strong",
+      "review": "The left ear and folded collar are clearer, and the iris no longer leaks below the lid. Eye clearcoat creates overly large white reflections; the fringe still forms dense strips. The three-quarter view reveals an intersecting shoulder/sleeve join.",
+      "image": "build/revisions/r007/front.png",
+      "path": "/build/GPT6AstraPro_ColabDev_Blender_RgirlBust/revisions/r007/front.png"
     }
   ],
   "files": [
@@ -60,13 +68,13 @@
       "label": "Editable Blender scene",
       "url": "build/latest/GPT6AstraPro_ColabDev_Blender_RgirlBust.blend",
       "path": "/build/GPT6AstraPro_ColabDev_Blender_RgirlBust/latest/GPT6AstraPro_ColabDev_Blender_RgirlBust.blend",
-      "size": "63.1 MB"
+      "size": "66.7 MB"
     },
     {
       "label": "Interactive 3D model \u00b7 GLB",
       "url": "build/latest/GPT6AstraPro_ColabDev_Blender_RgirlBust.glb",
       "path": "/build/GPT6AstraPro_ColabDev_Blender_RgirlBust/latest/GPT6AstraPro_ColabDev_Blender_RgirlBust.glb",
-      "size": "39.8 MB"
+      "size": "42.3 MB"
     },
     {
       "label": "EEVEE portrait \u00b7 PNG",
@@ -83,13 +91,13 @@
   "views": [
     {
       "label": "Facial anatomy detail",
-      "url": "build/revisions/r006/face.png",
-      "path": "/build/GPT6AstraPro_ColabDev_Blender_RgirlBust/revisions/r006/face.png"
+      "url": "build/revisions/r007/face.png",
+      "path": "/build/GPT6AstraPro_ColabDev_Blender_RgirlBust/revisions/r007/face.png"
     },
     {
       "label": "Three-quarter inspection",
-      "url": "build/revisions/r005/three-quarter.png",
-      "path": "/build/GPT6AstraPro_ColabDev_Blender_RgirlBust/revisions/r005/three-quarter.png"
+      "url": "build/revisions/r007/three-quarter.png",
+      "path": "/build/GPT6AstraPro_ColabDev_Blender_RgirlBust/revisions/r007/three-quarter.png"
     },
     {
       "label": "Side silhouette",
