@@ -1,8 +1,8 @@
 {
-  "revision": 5,
-  "score": 48.0,
-  "status": "Fuller waves \u2014 close-up shading defects found",
-  "updated": "2026-10-04T11:36:43+00:00",
+  "revision": 6,
+  "score": 56.0,
+  "status": "Continuous lids and a natural forehead opening",
+  "updated": "2026-10-04T11:44:41+00:00",
   "project": "/home/dev/project/3d/GPT6AstraPro_ColabDev_Blender_RgirlBust",
   "build": "/build/GPT6AstraPro_ColabDev_Blender_RgirlBust",
   "iterations": [
@@ -45,6 +45,14 @@
       "review": "The hair silhouette is fuller, but close-up inspection reveals conspicuous eyelid seams and artificial scalp coverage. Source inspection identified reversed lid, iris, and hair-lock normals. This remains a stylized approximation, not a photorealistic match.",
       "image": "build/revisions/r005/front.png",
       "path": "/build/GPT6AstraPro_ColabDev_Blender_RgirlBust/revisions/r005/front.png"
+    },
+    {
+      "id": 6,
+      "score": 56.0,
+      "title": "Continuous lids and a natural forehead opening",
+      "review": "Reversing the orbital normals removes the conspicuous outer eyelid seam. The higher hairline exposes the forehead, and nostrils are now recessed geometry. Remaining issues are doll-like eyes, coarse bangs, prominent nostril apertures, and insufficiently natural hair detail.",
+      "image": "build/revisions/r006/front.png",
+      "path": "/build/GPT6AstraPro_ColabDev_Blender_RgirlBust/revisions/r006/front.png"
     }
   ],
   "files": [
@@ -52,7 +60,7 @@
       "label": "Editable Blender scene",
       "url": "build/latest/GPT6AstraPro_ColabDev_Blender_RgirlBust.blend",
       "path": "/build/GPT6AstraPro_ColabDev_Blender_RgirlBust/latest/GPT6AstraPro_ColabDev_Blender_RgirlBust.blend",
-      "size": "63.2 MB"
+      "size": "63.1 MB"
     },
     {
       "label": "Interactive 3D model \u00b7 GLB",
@@ -75,8 +83,8 @@
   "views": [
     {
       "label": "Facial anatomy detail",
-      "url": "build/revisions/r005/face.png",
-      "path": "/build/GPT6AstraPro_ColabDev_Blender_RgirlBust/revisions/r005/face.png"
+      "url": "build/revisions/r006/face.png",
+      "path": "/build/GPT6AstraPro_ColabDev_Blender_RgirlBust/revisions/r006/face.png"
     },
     {
       "label": "Three-quarter inspection",

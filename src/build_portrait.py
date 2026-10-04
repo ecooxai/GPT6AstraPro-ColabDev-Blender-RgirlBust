@@ -25,7 +25,7 @@ scene.render.resolution_y=CFG.get('height',1080 if args.quality=='draft' else 15
 scene.render.resolution_percentage=100
 scene.render.image_settings.file_format='PNG';scene.render.film_transparent=False
 scene.eevee.taa_render_samples=32 if args.quality=='draft' else 96
-scene.eevee.use_gtao=True;scene.eevee.gtao_distance=.16;scene.eevee.gtao_factor=1.12
+scene.eevee.use_gtao=True;scene.eevee.gtao_distance=.09;scene.eevee.gtao_factor=.92
 scene.eevee.use_soft_shadows=True;scene.eevee.use_ssr=True
 scene.render.threads_mode='FIXED';scene.render.threads=10
 try: scene.view_settings.view_transform='AgX';scene.view_settings.look='AgX - Medium High Contrast'
@@ -67,16 +67,18 @@ lip=mat('LIPS | natural rose','BB7472',.38,sub=.055)
 lip_light=mat('Lips | soft wet highlights','D79189',.31,sub=.06)
 lip_seam=mat('Lips | subtle central separation','6E3E3D',.64)
 crease=mat('Skin | subtle warm crease','BA8271',.61)
-waterline=mat('Lid margin | muted rose','C99183',.44,sub=.04)
+waterline=mat('Lid margin | muted rose','D2A89A',.44,sub=.04)
 lashmat=mat('Lashes | dark brown','241714',.53)
-browmat=mat('Brows | individual tapered hairs','45312A',.68)
+browmat=mat('Brows | individual tapered hairs','645047',.72)
 white=mat('Sclera | warm ivory','F0E1D7',.27,sub=.025)
 nt=white.node_tree;vc=nt.nodes.new('ShaderNodeVertexColor');vc.layer_name='ScleraTint';nt.links.new(vc.outputs['Color'],nt.nodes.get('Principled BSDF').inputs['Base Color'])
 irismat=mat('Iris | original radial vertex pigment','573725',.26)
 nt=irismat.node_tree;col=nt.nodes.new('ShaderNodeVertexColor');col.layer_name='IrisPigment';nt.links.new(col.outputs['Color'],nt.nodes.get('Principled BSDF').inputs['Base Color'])
 pupil=mat('Pupils | near black','080707',.19)
 catchmat=mat('Corneal catchlight','FFF9EF',.09)
-pc=catchmat.node_tree.nodes.get('Principled BSDF');pc.inputs['Emission Color'].default_value=(.7,.65,.6,1);pc.inputs['Emission Strength'].default_value=.22
+pc=catchmat.node_tree.nodes.get('Principled BSDF');pc.inputs['Emission Color'].default_value=(.7,.65,.6,1);pc.inputs['Emission Strength'].default_value=.05
+for ocular_material in [white,irismat]:
+ p=ocular_material.node_tree.nodes.get('Principled BSDF');p.inputs['Coat Weight'].default_value=.75;p.inputs['Coat Roughness'].default_value=.065;p.inputs['Roughness'].default_value=.24
 hairmats=[]
 for name,c in [('espresso','241A19'),('walnut','30211E'),('warm strands','3E2C26'),('cool sheen','382C2B'),('fine glints','4A3631')]:
  m=mat('HAIR | '+name,c,CFG.get('hair_roughness',.38));p=m.node_tree.nodes.get('Principled BSDF');p.inputs['Anisotropic'].default_value=.55;p.inputs['Specular IOR Level'].default_value=.20
@@ -152,17 +154,23 @@ def face_y(x,z):
  y-=.042*gauss(x,z,0,3.61,.38,.22)
  for s in [-1,1]:
   y-=.061*gauss(x,z,s*.62,4.23,.32,.23)
+  y-=.025*gauss(x,z,s*.44,4.49,.30,.125)
   y+=.018*gauss(x,z,s*.46,4.66,.34,.18)
   y-=.068*gauss(x,z,s*.45,4.94,.39,.14)
  y-=CFG.get('nose_depth',1.0)*interp(NOSE,z)*exp(-(x/interp(NOSE,z,2))**2)
- for s in [-1,1]:y-=.10*gauss(x,z,s*.18,3.986,.097,.065)
+ for s in [-1,1]:y-=.078*gauss(x,z,s*.173,3.987,.090,.062)
+ y-=.027*gauss(x,z,0,4.047,.125,.094)+.019*gauss(x,z,0,3.964,.046,.046)
  y-=.02*(gauss(x,z,-.059,3.80,.025,.09)+gauss(x,z,.059,3.80,.025,.09))
  return y
 
 def complexion(x,z):
  base=rgb(CFG.get('skin','E8B5A0'));blush=rgb('D88F87');nosecol=rgb('E0A18D')
  k=.34*sum(gauss(x,z,s*.64,4.22,.28,.22) for s in [-1,1]);k+=.16*gauss(x,z,0,4.04,.24,.11)
- return tuple(base[i]*(1-k)+blush[i]*k for i in range(3))
+ color=tuple(base[i]*(1-k)+blush[i]*k for i in range(3))
+ t=(abs(x)-.15)/.60
+ if 0<t<1:
+  center=4.958+.044*sin(t*pi*.92)-.025*t;shade=.15*exp(-((z-center)/.037)**2)*sin(pi*t)**.35;root=rgb('73584C');color=tuple(color[i]*(1-shade)+root[i]*shade for i in range(3))
+ return color
 
 # Constrained triangulation in the frontal (theta, z) parameter domain.
 # Both eye loops are actual holes. Their outer lid vertices will be welded into this face mesh.
@@ -178,7 +186,7 @@ for sign in [-1,1]:
 for sign in [-1,1]:
  polygon=[]
  for k in range(48):
-  th=2*pi*k/48;x=sign*.146+.044*cos(th);z=3.956+.019*sin(th)-sign*.085*(x-sign*.146)
+  th=2*pi*k/48;x=sign*.137+.036*cos(th);z=3.951+.0115*sin(th)-sign*.16*(x-sign*.137)
   polygon.append((math.asin(x/interp(HEAD,z)),z))
  polygons.append(polygon)
 bounds=[(min(v[0] for v in poly),max(v[0] for v in poly),min(v[1] for v in poly),max(v[1] for v in poly)) for poly in polygons]
@@ -224,7 +232,7 @@ head=mesh('Face | original continuous orbital topology, nose and jaw',vs,fs,skin
 EYEZ=CFG.get('eye_z',4.66);EYEX=CFG.get('eye_x',.445);EYER=CFG.get('eye_radius',.275);EYEY=CFG.get('eye_y',-.49);EW=CFG.get('eye_width',.315);UP=CFG.get('eye_up',.133);LOW=CFG.get('eye_low',.101)
 def eyeco(s,q,h,extra=0):
  x=s*EYEX+q;z=EYEZ+h+.038*s*q
- y=EYEY-EYER+.078*(q/EW)**2+.026*(h/.12)**2+.16*s*q-extra
+ y=EYEY-EYER+.078*(q/EW)**2+.026*(h/.12)**2+.16*s*q-.012*exp(-((((q-CFG.get('iris_look',-.010))**2+(h-.012)**2)/.020)**2))-extra
  return (x,y,z)
 def eye_boundary(th):
  q=EW*cos(th);h=(UP if sin(th)>0 else LOW)*sin(th)*(abs(sin(th))**.85)
@@ -243,16 +251,17 @@ for s in [-1,1]:
   q=point[0]-s*EYEX;k=.48*(min(1,abs(q/EW))**5);a=rgb('EEE1D8');b=rgb('D9A095');sclera_colors.append(tuple(a[j]*(1-k)+b[j]*k for j in range(3)))
  mesh('Eye '+side+' | spherical almond sclera',v,f,white,True,sclera_colors,'ScleraTint')
  # Real radial iris surface, no photograph or generated texture.
- v=[];f=[];c=[];IR=CFG.get('iris_radius',.103);PUP=.043
+ v=[];f=[];c=[];IR=CFG.get('iris_radius',.112);PUP=.050
  for r in range(15):
   rad=IR*r/14
   for k in range(144):
-   th=2*pi*k/144;q=rad*cos(th);h=rad*sin(th)
+   th=2*pi*k/144;q=rad*cos(th)+CFG.get('iris_look',-.010);h=rad*sin(th)+.012
+   limit=max(0,1-(q/EW)**2)**.925;h=max(-LOW*limit+.00015,min(UP*limit-.00015,h))
    v.append(eyeco(s,q,h,.004))
    if rad<PUP*.96:color=rgb('0B0908')
    else:
     phase=.5+.23*sin(th*41+.4*sin(th*11))+.14*sin(th*77+rad*230)+.1*sin(th*113-rad*90)
-    strength=(.39+.7*phase)*(1-.6*exp(-((rad-IR)/.009)**2))
+    strength=(.26+.48*phase)*(1-.6*exp(-((rad-IR)/.009)**2))
     inner=exp(-((rad-.066)/.018)**2)
     color=tuple(lin(min(.85,vv*strength)) for vv in (.38+.06*inner,.245+.02*inner,.166))
    c.append(color)
@@ -284,28 +293,28 @@ for s in [-1,1]:
   pts.append((ix*(1-t)+ox*t,iy*(1-t)+oy*t-.003*sin(pi*t)-.0015,iz*(1-t)+oz*t))
  tube('Eye '+side+' | delicate upper fold',pts,.0022,crease,True,5)
  # Individual lashes are fine, not a solid strip.
- for k in range(31):
-  u=-.94+1.88*k/30;q=EW*u;h=UP*(sqrt(max(0,1-u*u))**1.85);p=Vector(eyeco(s,q,h,.015));le=.022+.021*(.5+.5*u*s)
-  tube('Lash '+side+str(k),[p,p+Vector((u*.014,-.025,.008)),p+Vector((u*.031,-.045,le))],.0023,lashmat,True,4,True,8)
- for k in range(13):
-  u=-.8+1.6*k/12;q=EW*u;h=-LOW*(sqrt(1-u*u)**1.85);p=Vector(eyeco(s,q,h,.010))
-  tube('Lower lash '+side+str(k),[p,p+Vector((u*.014,-.016,-.018)),p+Vector((u*.025,-.020,-.019))],.0015,browmat,True,4,True,7)
+ for k in range(45):
+  u=-.94+1.88*(k+random.random()*.75)/45;q=EW*u;h=UP*(sqrt(max(0,1-u*u))**1.85);p=Vector(eyeco(s,q,h,.015));le=.022+.021*(.5+.5*u*s)
+  tube('Lash '+side+str(k),[p,p+Vector((u*.014,-.025,.008)),p+Vector((u*.031,-.045,le))],random.uniform(.0010,.0016),lashmat,True,4,True,8)
+ for k in range(17):
+  u=-.8+1.6*(k+random.random()*.7)/17;q=EW*u;h=-LOW*(sqrt(1-u*u)**1.85);p=Vector(eyeco(s,q,h,.010))
+  tube('Lower lash '+side+str(k),[p,p+Vector((u*.014,-.016,-.018)),p+Vector((u*.025,-.020,-.019))],random.uniform(.0007,.0011),browmat,True,4,True,7)
  # Catchlights are small pieces of 3D corneal geometry, not image dots.
- for q,h,rr in [(-.029,.035,.012),(.030,-.024,.004)]:
+ for q,h,rr in [(-.029,.035,.008),(.030,-.024,.003)]:
   loc=eyeco(s,q,h,.012);sphere('Eye '+side+' | corneal catchlight',loc,(rr,.003,rr*.8),catchmat,True,20,12)
  # Brows composed of hundreds of thin original hairs with a soft root silhouette.
- for k in range(175):
-  t=random.random();x=s*(.15+.60*t);z=4.995+.075*sin(t*pi*.92)-.035*t+random.uniform(-.029,.025);y=face_y(x,z)-.012
-  le=random.uniform(.033,.063);dx=s*(.029+.03*t)
+ for k in range(340):
+  t=random.random();x=s*(.15+.60*t);z=4.958+.044*sin(t*pi*.92)-.025*t+random.uniform(-.024,.023);y=face_y(x,z)-.012
+  le=random.uniform(.019,.037);dx=s*(.021+.029*t)
   end=(x+dx,y-.008,z+le*(1-.7*t))
-  tube('Brow '+side+f' | hair {k:03d}',[(x,y,z),(x+dx*.45,y-.008,z+le*.6),end],random.uniform(.0015,.0025),browmat,True,4,True,6)
+  tube('Brow '+side+f' | hair {k:03d}',[(x,y,z),(x+dx*.45,y-.008,z+le*.6),end],random.uniform(.0008,.0014),browmat,True,4,True,6)
 # Genuine recessed nostril chambers, continuous with the cut facial openings.
 for sign in [-1,1]:
  v=[];f=[]
  for j in range(5):
   t=j/4
   for k in range(48):
-   th=2*pi*k/48;x=sign*.146+.044*cos(th)*(1-.13*t);z=3.956+.019*sin(th)*(1-.13*t)-sign*.085*(x-sign*.146);y=face_y(x,z)+.065*t
+   th=2*pi*k/48;x=sign*.137+.036*cos(th)*(1-.13*t);z=3.951+.0115*sin(th)*(1-.13*t)-sign*.16*(x-sign*.137);y=face_y(x,z)+.055*t;z+=.010*t
    v.append((x,y,z))
  for j in range(4):
   for k in range(48):f.append((j*48+k,j*48+(k+1)%48,(j+1)*48+(k+1)%48,(j+1)*48+k))
@@ -411,7 +420,7 @@ for s in [-1,1]:
  tube('Shirt | set-in sleeve seam '+str(s),pts,.006,seammat,False,5)
 # Folded collar leaves, softly curved four-sided textile surfaces.
 def collar_patch(s):
- A=Vector((s*.37,-.19,2.75));B=Vector((s*.64,-.10,2.49));C=Vector((s*.73,-.43,1.98));D=Vector((s*.025,-.58,1.89))
+ A=Vector((s*.37,-.19,2.75));B=Vector((s*.64,-.23,2.55));C=Vector((s*.78,-.45,1.99));D=Vector((s*.19,-.50,2.10))
  v=[];f=[]
  for i in range(21):
   u=i/20
@@ -459,7 +468,7 @@ print('CLOTHING BUILT',flush=True)
 # Hair. A closed scalp shell supports layered, volumetric swept locks.
 # Every fiber below is authored 3D geometry; no cards, scanned hair, or photo textures.
 def scalp_point(th,t):
- bottom=(4.83+.79*max(0,cos(th))**.40) if cos(th)>=0 else (4.83-.90*(-cos(th))**.8);z=6.205-(6.205-bottom)*t**.84;hz=min(6.118,z-.060)
+ bottom=(4.83+.79*max(0,cos(th))**.40) if cos(th)>=0 else (4.83-.90*(-cos(th))**.8);z=6.205-(6.205-bottom)*t**.84+(.008*sin(37*th)+.005*sin(83*th))*min(1,t)**10;hz=min(6.118,z-.060)
  w=interp(HEAD,hz)+.056;fr=interp(HEAD,hz,2)-.075;ba=interp(HEAD,hz,3)+.064
  return Vector((w*sin(th)+.16*(1-min(1,t))**3,(fr+ba)/2-(ba-fr)/2*cos(th),z))
 v=[];f=[];HS=192;HR=64
@@ -474,13 +483,20 @@ for k in range(680):
  for j in range(48):
   t=.012+.998*j/47;th=angle+.28*sin(pi*min(1,t))*(1-min(1,t));point=scalp_point(th,t);normal=Vector((point.x,point.y-.04,max(.04,point.z-4.7)*.7)).normalized();point+=normal*.006;pts.append(point)
  tube('Hair fiber | crown meridian %04d'%k,pts,random.uniform(.0012,.0019),fibermats[random.choice([0,0,1,1,3])],True,4)
+# Original tiny hairs soften the forehead transition without any alpha texture.
+for k in range(180):
+ angle=-1.08+2.16*(k+random.random())/180;points=[]
+ for j in range(12):
+  point=scalp_point(angle,.89+.11*j/11);point+=Vector((0,-.004,0));points.append(point)
+ tip=points[-1];length=random.uniform(.022,.064);points.extend([tip+Vector((-.014,-.004,-length*.52)),tip+Vector((-.020,-.004,-length))])
+ tube('Hair fiber | natural fine hairline %03d'%k,points,random.uniform(.0006,.0010),fibermats[random.choice([0,1,3])],True,3)
 # Back hair volume is closed around the ends; fine locks live above this surface.
 v=[];f=[];HC=96;HZ=60
 for layer in [0,1]:
  for j in range(HZ+1):
   t=j/HZ
   for k in range(HC+1):
-   th=1.25+(2*pi-2.50)*k/HC;bottom=.96+.16*cos(2*th)+.035*sin(11*th);z=4.57+(bottom-4.57)*t
+   th=1.25+(4.78-1.25)*k/HC;bottom=.96+.16*cos(2*th)+.035*sin(11*th);z=4.57+(bottom-4.57)*t
    wid=1.14+.16*sin(pi*t)-.17*t**5;dep=.99-.23*t
    x=(wid-.065*layer)*sin(th);y=.10-(dep-.065*layer)*cos(th);v.append((x,y,z))
 S=(HZ+1)*(HC+1)
@@ -500,7 +516,8 @@ def lock(name,points,width,depth=.035,fibers=FIBERS,mati=0):
  ps=sample(points,56)
  # Project into a continuous skull-to-hair envelope, with no hard height transition.
  for point in ps:
-  hz=min(6.112,max(3.2,point.z-.065));wh=interp(HEAD,hz)+.115;fr=interp(HEAD,hz,2)-.140;ba=interp(HEAD,hz,3)+.115;cyh=(fr+ba)/2;rh=(ba-fr)/2
+  fine=('wisp' in name or 'fringe' in name or 'cheek frame' in name);clearance=.039 if fine else .115
+  hz=min(6.112,max(3.2,point.z-.065));wh=interp(HEAD,hz)+clearance;fr=interp(HEAD,hz,2)-(.036 if fine else .140);ba=interp(HEAD,hz,3)+clearance;cyh=(fr+ba)/2;rh=(ba-fr)/2
   if name.startswith('rear curtain'):
    t=max(0,min(1,(4.57-point.z)/3.85));wb=1.14+.16*sin(pi*t)-.17*t**5+.067;rb=.99-.23*t+.060;a=max(0,min(1,(4.98-point.z)/.72));a=a*a*(3-2*a);w=wh*(1-a)+wb*a;ry=rh*(1-a)+rb*a;cy=cyh*(1-a)+.10*a;weight=1
   else:
@@ -534,7 +551,7 @@ def lock(name,points,width,depth=.035,fibers=FIBERS,mati=0):
   tube('Hair fiber | '+name+' '+str(k),pts,random.uniform(.0013,.0023),fibermats[random.choices([0,1,2,3,4],[.16,.37,.21,.23,.03])[0]],True,4)
 # Back and side curtain, descending from crown around the whole skull.
 for k in range(66):
- th=1.15+(2*pi-2.30)*k/65;st=sin(th);ct=cos(th);jitter=random.uniform(-.035,.035);bottom=random.uniform(.44,1.00)+.13*ct
+ th=1.15+(4.79-1.15)*k/65;st=sin(th);ct=cos(th);jitter=random.uniform(-.035,.035);bottom=random.uniform(.44,1.00)+.13*ct
  points=[(.18+.08*st,.08-.13*ct,6.16),(.80*st,-.73*ct+.10,5.81),(1.095*st,-.95*ct+.10,4.93),(1.135*st,-.94*ct+.10,3.99),(1.24*st,-.84*ct+.09,3.13),(1.28*st+.055*sin(k*.8),-.82*ct+.07,2.37),(1.40*st+.04*sin(k),-.78*ct,1.51),(1.25*st+.05*sin(k),-.73*ct-.02,bottom)]
  lock('rear curtain %02d'%k,points,.080+random.random()*.040,.032,8,random.choice([0,0,1,3]))
 # Prominent long front layers, separately sculpted on each side.
@@ -558,20 +575,20 @@ for sgn in [-1,1]:
   else:
    points=[(.25,.32-.82*t,6.18-.025*t),(.63,-.20-.56*t,6.02-.19*t),(1.01,-.19-.53*t,5.58-.38*t),(1.14,-.10-.31*t,4.80-.20*t)]
   lock(('left' if sgn<0 else 'right')+' crown sweep %02d'%k,points,.036+random.random()*.012,.018,8,random.choice([0,0,1,3]))
-# Swept forehead fringe, sparse enough to reveal the forehead.
-for k in range(9):
- t=k/8
- points=[(.24+.16*t,-.62+.03*t,5.94-.055*t),(.19-.15*t,-.86-.015*t,5.67-.08*t),(-.07-.28*t,-.94-.02*t,5.23-.12*t),(-.18-.42*t,-.95+.04*t,4.92-.08*t)]
- lock('wispy swept fringe %02d'%k,points,.022+random.random()*.014,.014,10,random.choice([0,1,3]))
+# Wispy separate bangs: many narrow original bundles, not a few broad cards.
+for k in range(36):
+ t=k/35
+ points=[(.22+.17*t,-.54+.05*t,6.06-.045*t),(.10-.14*t,-.80-.014*t,5.70-.085*t),(-.07-.23*t,-.846-.010*t,5.29-.10*t),(-.17-.39*t+.015*sin(k),-.87+.05*t,4.91+.09*sin(k*1.8)**2)]
+ lock('wispy swept fringe %02d'%k,points,random.uniform(.004,.007),.004,5,random.choice([0,0,1,3]))
+for k in range(14):
+ t=k/13
+ points=[(.36+.025*t,-.67,5.94),(.43-.05*t,-.828,5.56),(.38-.085*t,-.857,5.20),(.22-.11*t,-.879,4.93+.14*t)]
+ lock('central separated wisp %02d'%k,points,random.uniform(.003,.005),.0035,4,0)
+# A few thin face-framing pieces soften the edge near the left ear.
 for k in range(5):
  t=k/4
- points=[(.42+.03*t,-.65,5.83),(.46-.06*t,-.90,5.52),(.39-.09*t,-.98,5.15),(.26-.10*t,-.98,4.84+.035*t)]
- lock('central separated wisp %02d'%k,points,.011+random.random()*.008,.010,6,0)
-# A few thin face-framing pieces soften the edge near the left ear.
-for k in range(8):
- t=k/7
  points=[(-.52-.08*t,-.84,5.63),(-.74-.07*t,-.93,5.22),(-.93-.04*t,-.84,4.63),(-1.00-.02*t,-.63,4.05),(-.96+.03*t,-.55,3.63)]
- lock('fine cheek frame %02d'%k,points,.013,.010,5,1)
+ lock('fine cheek frame %02d'%k,points,.008,.006,4,1)
 # Irregular flyaways follow original guide splines and are intentionally restrained.
 for k in range(65):
  s=random.choice([-1,1]);z=random.uniform(3.2,5.8);x=s*(1.09+.055*sin(z*3));y=random.uniform(-.45,.12)
