@@ -22,6 +22,7 @@ def create_garment_surface(torso, interpolate, gaussian):
                 for sign in (-1,1):
                     y-=.075*gaussian(x,z,sign*.63,1.26,.54,.64)
                 y+=.012*gaussian(x,z,0,1.15,.15,.70)
+                y-=.026*gaussian(x,z,0,2.47,.66,.38)
                 for button_z in (1.58,.83,.08):
                     distance=z-button_z-.19*abs(x)
                     y-=.010*exp(-(distance/.034)**2)*exp(-(x/.50)**2)

@@ -1,8 +1,8 @@
 {
-  "revision": 7,
-  "score": 57.0,
-  "status": "Visible ear and refined gaze \u2014 reflections too strong",
-  "updated": "2026-10-04T11:52:34+00:00",
+  "revision": 8,
+  "score": 59.0,
+  "status": "Continuous garment and restrained eye reflections",
+  "updated": "2026-10-04T12:12:29+00:00",
   "project": "/home/dev/project/3d/GPT6AstraPro_ColabDev_Blender_RgirlBust",
   "build": "/build/GPT6AstraPro_ColabDev_Blender_RgirlBust",
   "iterations": [
@@ -61,6 +61,14 @@
       "review": "The left ear and folded collar are clearer, and the iris no longer leaks below the lid. Eye clearcoat creates overly large white reflections; the fringe still forms dense strips. The three-quarter view reveals an intersecting shoulder/sleeve join.",
       "image": "build/revisions/r007/front.png",
       "path": "/build/GPT6AstraPro_ColabDev_Blender_RgirlBust/revisions/r007/front.png"
+    },
+    {
+      "id": 8,
+      "score": 59.0,
+      "title": "Continuous garment and restrained eye reflections",
+      "review": "The shirt now has one continuous torso-and-sleeve surface, and eye reflections are less dominant. All five views were rendered. Rear inspection still shows rigid pointed hair ends; the front needs softer roots, fuller lips, and more faithful hair balance.",
+      "image": "build/revisions/r008/front.png",
+      "path": "/build/GPT6AstraPro_ColabDev_Blender_RgirlBust/revisions/r008/front.png"
     }
   ],
   "files": [
@@ -68,13 +76,13 @@
       "label": "Editable Blender scene",
       "url": "build/latest/GPT6AstraPro_ColabDev_Blender_RgirlBust.blend",
       "path": "/build/GPT6AstraPro_ColabDev_Blender_RgirlBust/latest/GPT6AstraPro_ColabDev_Blender_RgirlBust.blend",
-      "size": "66.7 MB"
+      "size": "64.8 MB"
     },
     {
       "label": "Interactive 3D model \u00b7 GLB",
       "url": "build/latest/GPT6AstraPro_ColabDev_Blender_RgirlBust.glb",
       "path": "/build/GPT6AstraPro_ColabDev_Blender_RgirlBust/latest/GPT6AstraPro_ColabDev_Blender_RgirlBust.glb",
-      "size": "42.3 MB"
+      "size": "41.6 MB"
     },
     {
       "label": "EEVEE portrait \u00b7 PNG",
@@ -91,23 +99,23 @@
   "views": [
     {
       "label": "Facial anatomy detail",
-      "url": "build/revisions/r007/face.png",
-      "path": "/build/GPT6AstraPro_ColabDev_Blender_RgirlBust/revisions/r007/face.png"
+      "url": "build/revisions/r008/face.png",
+      "path": "/build/GPT6AstraPro_ColabDev_Blender_RgirlBust/revisions/r008/face.png"
     },
     {
       "label": "Three-quarter inspection",
-      "url": "build/revisions/r007/three-quarter.png",
-      "path": "/build/GPT6AstraPro_ColabDev_Blender_RgirlBust/revisions/r007/three-quarter.png"
+      "url": "build/revisions/r008/three-quarter.png",
+      "path": "/build/GPT6AstraPro_ColabDev_Blender_RgirlBust/revisions/r008/three-quarter.png"
     },
     {
       "label": "Side silhouette",
-      "url": "build/revisions/r004/side.png",
-      "path": "/build/GPT6AstraPro_ColabDev_Blender_RgirlBust/revisions/r004/side.png"
+      "url": "build/revisions/r008/side.png",
+      "path": "/build/GPT6AstraPro_ColabDev_Blender_RgirlBust/revisions/r008/side.png"
     },
     {
       "label": "Rear hair construction",
-      "url": "build/revisions/r004/back.png",
-      "path": "/build/GPT6AstraPro_ColabDev_Blender_RgirlBust/revisions/r004/back.png"
+      "url": "build/revisions/r008/back.png",
+      "path": "/build/GPT6AstraPro_ColabDev_Blender_RgirlBust/revisions/r008/back.png"
     }
   ]
 }

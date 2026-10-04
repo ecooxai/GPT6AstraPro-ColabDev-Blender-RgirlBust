@@ -15,6 +15,9 @@ CFG=json.loads((ROOT/'src/config.json').read_text()) if (ROOT/'src/config.json')
 random.seed(41)
 REV=ROOT/'build/revisions'/f'r{args.revision:03d}';REV.mkdir(parents=True,exist_ok=True)
 LATEST=ROOT/'build/latest';LATEST.mkdir(exist_ok=True)
+sys.path.insert(0,str(ROOT/'src'))
+from snapshot_build import capture_source
+SOURCE_REPORT=capture_source(ROOT,REV)
 PREFIX='GPT6AstraPro_ColabDev_Blender_RgirlBust'
 bpy.ops.object.select_all(action='SELECT');bpy.ops.object.delete(use_global=False)
 for data in list(bpy.data.materials): bpy.data.materials.remove(data)
@@ -86,6 +89,16 @@ for name,c in [('espresso','241A19'),('walnut','30211E'),('warm strands','3E2C26
 fibermats=[]
 for original in hairmats:
  m=original.copy();m.name=original.name+' | fine fiber';m.shadow_method='NONE';m.node_tree.nodes.get('Principled BSDF').inputs['Specular IOR Level'].default_value=.15;fibermats.append(m)
+rootmat=hairmats[0].copy();rootmat.name='HAIR | soft original hairline'
+rootmat.blend_method='HASHED';rootmat.shadow_method='HASHED'
+nt=rootmat.node_tree;node=nt.nodes.new('ShaderNodeVertexColor');node.layer_name='RootPigment'
+nt.links.new(node.outputs['Color'],nt.nodes.get('Principled BSDF').inputs['Base Color'])
+nt.links.new(node.outputs['Alpha'],nt.nodes.get('Principled BSDF').inputs['Alpha'])
+rootopaque=rootmat.copy();rootopaque.name='HAIR | dense original cores'
+rootopaque.blend_method='OPAQUE';rootopaque.shadow_method='OPAQUE'
+nt=rootopaque.node_tree;principled=nt.nodes.get('Principled BSDF')
+for link in list(principled.inputs['Alpha'].links):nt.links.remove(link)
+principled.inputs['Alpha'].default_value=1
 shirt=mat('SHIRT | white cotton, procedural weave','E5E7EB',.71)
 nt=shirt.node_tree;p=nt.nodes.get('Principled BSDF');p.inputs['Sheen Weight'].default_value=.16
 tex=nt.nodes.new('ShaderNodeTexNoise');tex.inputs['Scale'].default_value=220;tex.inputs['Detail'].default_value=2
@@ -97,9 +110,13 @@ threadmat=mat('Button threads','B9B2A8',.68)
 def mesh(name,vs,fs,m,head=False,colors=None,layer='Complexion',stage=False):
  me=bpy.data.meshes.new(name);me.from_pydata(vs,[],fs);me.update();ob=bpy.data.objects.new(name,me);put(ob,head,stage);ob.data.materials.append(m)
  for f in me.polygons:f.use_smooth=True
+ if m==rootmat and colors:
+  me.materials.append(rootopaque)
+  for face in me.polygons:
+   if min(colors[index][3] for index in face.vertices)>.999:face.material_index=1
  if colors:
   ca=me.color_attributes.new(name=layer,type='FLOAT_COLOR',domain='POINT')
-  for i,c in enumerate(colors):ca.data[i].color=(*c[:3],1)
+  for i,c in enumerate(colors):ca.data[i].color=(*c[:3],c[3] if len(c)>3 else 1)
  return ob
 
 def smooth(ob,levels=1):
@@ -327,8 +344,8 @@ for sign in [-1,1]:
 # Lip surfaces with cupid bow and soft integration into surrounding skin.
 MW=CFG.get('mouth_width',.278);MZ=CFG.get('mouth_z',3.625)
 def mouthline(u):return MZ-.012*abs(u)+.007*cos(u*pi)
-def upperlip(u):return (1-u*u)**.75*(.055+.014*exp(-((abs(u)-.34)/.23)**2)-.006*exp(-(u/.16)**2))
-def lowerlip(u):return .098*(max(0,1-u*u)**.80)
+def upperlip(u):return (1-u*u)**.75*(.073+.022*exp(-((abs(u)-.34)/.23)**2)-.006*exp(-(u/.16)**2))
+def lowerlip(u):return .094*(max(0,1-u*u)**.80)
 lip_surfaces=[]
 for source in [lip,lip_light]:
  m=source.copy();m.name=source.name+' | feathered edge';nt=m.node_tree;vc=nt.nodes.new('ShaderNodeVertexColor');vc.layer_name='LipTint';nt.links.new(vc.outputs['Color'],nt.nodes.get('Principled BSDF').inputs['Base Color']);lip_surfaces.append(m)
@@ -423,7 +440,7 @@ collar_patch(-1);collar_patch(1)
 v=[];f=[]
 for j in range(2):
  for k in range(97):
-  th=1.20+(2*pi-2.40)*k/96;z=2.70+.03*cos(th)+j*.12;v.append((.485*sin(th),.04-.31*cos(th),z))
+  th=1.62+(2*pi-3.24)*k/96;z=2.70+.03*cos(th)+j*.12;v.append((.485*sin(th),.04-.31*cos(th),z))
 for k in range(96):f.append((k,k+1,97+k+1,97+k))
 ob=mesh('Collar | continuous rear neckband',v,f,shirt);mod=ob.modifiers.new('Collar band thickness','SOLIDIFY');mod.thickness=.018
 # Soft front placket with three-dimensional buttons and stitching.
@@ -456,7 +473,7 @@ print('CLOTHING BUILT',flush=True)
 # Hair. A closed scalp shell supports layered, volumetric swept locks.
 # Every fiber below is authored 3D geometry; no cards, scanned hair, or photo textures.
 def scalp_point(th,t):
- bottom=(4.83+.79*max(0,cos(th))**.40) if cos(th)>=0 else (4.83-.90*(-cos(th))**.8);z=6.205-(6.205-bottom)*t**.84+(.008*sin(37*th)+.005*sin(83*th))*min(1,t)**10;hz=min(6.118,z-.060)
+ bottom=(4.83+.79*max(0,cos(th))**.40) if cos(th)>=0 else (4.83-.90*(-cos(th))**.8);z=6.205-(6.205-bottom)*t**.84+(.002*sin(37*th)+.001*sin(83*th))*min(1,t)**10;hz=min(6.118,z-.060)
  w=interp(HEAD,hz)+.056;fr=interp(HEAD,hz,2)-.075;ba=interp(HEAD,hz,3)+.064
  return Vector((w*sin(th)+.16*(1-min(1,t))**3,(fr+ba)/2-(ba-fr)/2*cos(th),z))
 v=[];f=[];HS=192;HR=64
@@ -464,13 +481,19 @@ for j in range(HR+1):
  for k in range(HS):v.append(tuple(scalp_point(2*pi*k/HS,j/HR)))
 for j in range(HR):
  for k in range(HS):f.append((j*HS+k,j*HS+(k+1)%HS,(j+1)*HS+(k+1)%HS,(j+1)*HS+k))
-mesh('Hair | nonintersecting original scalp foundation',v,[tuple(reversed(face)) for face in f],hairmats[0],True)
+root_colors=[]
+for j in range(HR+1):
+ t=j/HR;fade=max(0,min(1,(t-.88)/.12));fade=fade*fade*(3-2*fade)
+ for k in range(HS):
+  frontal=max(0,min(1,cos(2*pi*k/HS)/.30));alpha=1-fade*frontal
+  root_colors.append((*hairmats[0].diffuse_color[:3],alpha))
+mesh('Hair | nonintersecting original scalp foundation',v,[tuple(reversed(face)) for face in f],rootmat,True,root_colors,'RootPigment')
 # Crown fibers sit on the actual scalp surface, never on an approximate ellipsoid.
-for k in range(680):
- angle=2*pi*(k+.27)/680;pts=[]
+for k in range(2000):
+ angle=2*pi*(k+.27)/2000;pts=[]
  for j in range(48):
   t=.012+.998*j/47;th=angle+.28*sin(pi*min(1,t))*(1-min(1,t));point=scalp_point(th,t);normal=Vector((point.x,point.y-.04,max(.04,point.z-4.7)*.7)).normalized();point+=normal*.006;pts.append(point)
- tube('Hair fiber | crown meridian %04d'%k,pts,random.uniform(.0012,.0019),fibermats[random.choice([0,0,1,1,3])],True,4)
+ tube('Hair fiber | crown meridian %04d'%k,pts,random.uniform(.00065,.0013),fibermats[random.choice([0,0,1,1,3])],True,4)
 # Original tiny hairs soften the forehead transition without any alpha texture.
 for k in range(180):
  angle=-1.08+2.16*(k+random.random())/180;points=[]
@@ -485,7 +508,7 @@ for layer in [0,1]:
   t=j/HZ
   for k in range(HC+1):
    th=1.25+(4.78-1.25)*k/HC;bottom=.96+.16*cos(2*th)+.035*sin(11*th);z=4.57+(bottom-4.57)*t
-   wid=1.14+.16*sin(pi*t)-.17*t**5;dep=.99-.23*t
+   wid=1.14+.16*sin(pi*t)-.17*t**5+(.10*exp(-((z-4.35)/.50)**2) if sin(th)>0 else 0);dep=.99-.23*t
    x=(wid-.065*layer)*sin(th);y=.10-(dep-.065*layer)*cos(th);v.append((x,y,z))
 S=(HZ+1)*(HC+1)
 for layer in [0,1]:
@@ -497,7 +520,12 @@ for j in range(HZ):
   q=j*(HC+1)+k;f.append((q,q+HC+1,q+HC+1+S,q+S))
 for k in range(HC):
  q=HZ*(HC+1)+k;f.append((q,q+S,q+1+S,q+1))
-mesh('Hair | full back volume and closed ends',v,f,hairmats[0],True)
+back_colors=[]
+for layer in [0,1]:
+ for j in range(HZ+1):
+  t=j/HZ;fade=max(0,min(1,(t-.72)/.28));fade=fade*fade*(3-2*fade)
+  back_colors.extend([(*hairmats[0].diffuse_color[:3],1-fade)]*(HC+1))
+mesh('Hair | full back volume and closed ends',v,f,rootmat,True,back_colors,'RootPigment')
 
 FIBERS=CFG.get('fibers_per_lock',11)
 def lock(name,points,width,depth=.035,fibers=FIBERS,mati=0):
@@ -530,30 +558,38 @@ def lock(name,points,width,depth=.035,fibers=FIBERS,mati=0):
   if i:
    for j in range(10):f.append(((i-1)*10+j,(i-1)*10+(j+1)%10,i*10+(j+1)%10,i*10+j))
  f.append(tuple(range(9,-1,-1)));f.append(tuple((len(ps)-1)*10+j for j in range(10)))
- mesh('Hair lock | '+name,v,[tuple(reversed(face)) for face in f],hairmats[mati],True)
+ lock_colors=[]
+ for i in range(len(ps)):
+  t=i/(len(ps)-1);fade=max(0,min(1,(t-.80)/.20));fade=fade*fade*(3-2*fade)
+  lock_colors.extend([(*hairmats[mati].diffuse_color[:3],1-fade)]*10)
+ mesh('Hair lock | '+name,v,[tuple(reversed(face)) for face in f],rootmat,True,lock_colors,'RootPigment')
  for k in range(fibers):
   off=-.92+1.84*(k+.5)/fibers;phase=random.random()*6.28;pts=[]
   for i,(p,side,n,wi,di) in enumerate(frames):
    t=i/(len(frames)-1);wav=.0019*sin(phase+t*35)*sin(pi*t);q=p+side*(off*wi+wav)+n*(di*sqrt(max(0,1-off*off))+.002)
    pts.append(q)
+  if ('rear curtain' in name or 'front fall' in name):
+   trim=random.randrange(0,5)
+   if trim:pts=pts[:-trim]
   tube('Hair fiber | '+name+' '+str(k),pts,random.uniform(.0013,.0023)*(.43 if ('wisp' in name or 'fringe' in name) else 1),fibermats[random.choices([0,1,2,3,4],[.16,.37,.21,.23,.03])[0]],True,4)
 # Back and side curtain, descending from crown around the whole skull.
 for k in range(66):
  th=1.15+(4.79-1.15)*k/65;st=sin(th);ct=cos(th);jitter=random.uniform(-.035,.035);bottom=random.uniform(.44,1.00)+.13*ct
  points=[(.18+.08*st,.08-.13*ct,6.16),(.80*st,-.73*ct+.10,5.81),(1.095*st,-.95*ct+.10,4.93),(1.135*st,-.94*ct+.10,3.99),(1.24*st,-.84*ct+.09,3.13),(1.28*st+.055*sin(k*.8),-.82*ct+.07,2.37),(1.40*st+.04*sin(k),-.78*ct,1.51),(1.25*st+.05*sin(k),-.73*ct-.02,bottom)]
- lock('rear curtain %02d'%k,points,.080+random.random()*.040,.032,8,random.choice([0,0,1,3]))
+ lock('rear curtain %02d'%k,points,.080+random.random()*.040,.032,20,random.choice([0,0,1,3]))
 # Prominent long front layers, separately sculpted on each side.
 for s in [-1,1]:
- for k in range(30):
-  t=k/29;ofs=(t-.5)*.78
+ count=38 if s>0 else 26
+ for k in range(count):
+  t=k/(count-1);ofs=(t-.5)*(1.08 if s>0 else .66)
   if s<0:
    points=[(.19-.04*t,-.18-.13*t,6.16-.025*t),(-.36,-.57-.03*t,6.09-.12*t),(-.88,-.68-.03*t,5.60-.23*t),(-1.10+ofs*.2,.015-.04*t,4.82),(-1.10+ofs*.35,.09-.06*t,3.86),(-1.13+ofs*.55,-.48-.18*t,2.91),(-1.20+ofs,-.58-.16*t,2.13),(-1.45+ofs*.8,-.64-.13*t,1.26),(-1.52+ofs*.5,-.66-.12*t,.74),(-1.02+ofs*.76,-.65-.08*t,-.03+.39*t+.055*sin(k*1.6))]
   else:
-   points=[(.23+.04*t,-.17-.12*t,6.15-.02*t),(.71,-.57-.05*t,5.93-.06*t),(1.045,-.62-.03*t,5.24),(1.08+ofs*.1,-.42-.09*t,4.42),(1.11+ofs*.3,-.34-.10*t,3.55),(1.23+ofs*.55,-.47-.12*t,2.77),(1.37+ofs,-.61-.16*t,2.12),(1.55+ofs*.8,-.66-.13*t,1.49),(1.46+ofs*.8,-.69-.14*t,.94),(.96+ofs*.82,-.63-.1*t,.18+.32*t+.08*sin(k*1.3))]
+   points=[(.23+.04*t,-.17-.12*t,6.15-.02*t),(.71,-.57-.05*t,5.93-.06*t),(1.045,-.62-.03*t,5.24),(1.21+ofs*.1,-.43-.09*t,4.42),(1.18+ofs*.3,-.40-.10*t,3.55),(1.23+ofs*.55,-.47-.12*t,2.77),(1.37+ofs,-.61-.16*t,2.12),(1.55+ofs*.8,-.66-.13*t,1.49),(1.46+ofs*.8,-.69-.14*t,.94),(.96+ofs*.82,-.63-.1*t,.18+.32*t+.08*sin(k*1.3))]
   for j,point in enumerate(points):
    if point[2]<3.1:
-    u=max(0,min(1,(3.1-point[2])/3.25));wave=.11*sin(pi*u)*sin(2*pi*u+k*.23);points[j]=(point[0]+s*wave,point[1]+.035*sin(pi*u)*sin(2*pi*u+k*.17),point[2])
-  lock(('left' if s<0 else 'right')+' front fall %02d'%k,points,.055+random.random()*.035,.027,14,random.choice([0,1,1,3]))
+    u=max(0,min(1,(3.1-point[2])/3.25));wave=.11*sin(pi*u)*sin(2*pi*u+k*.23);points[j]=(point[0]+s*wave,point[1]+.035*sin(pi*u)*sin(2*pi*u+k*.17)-.095*sin(pi*t)*sin(pi*u*.8),point[2])
+  lock(('left' if s<0 else 'right')+' front fall %02d'%k,points,.046+random.random()*.028,.022,13,random.choice([0,1,1,3]))
 # Short crown sweeps follow the off-center part and tuck behind the left ear.
 for sgn in [-1,1]:
  for k in range(38):
@@ -564,14 +600,14 @@ for sgn in [-1,1]:
    points=[(.25,.32-.82*t,6.18-.025*t),(.63,-.20-.56*t,6.02-.19*t),(1.01,-.19-.53*t,5.58-.38*t),(1.14,-.10-.31*t,4.80-.20*t)]
   lock(('left' if sgn<0 else 'right')+' crown sweep %02d'%k,points,.036+random.random()*.012,.018,8,random.choice([0,0,1,3]))
 # Wispy separate bangs: many narrow original bundles, not a few broad cards.
-for k in range(14):
- t=k/13
+for k in range(20):
+ t=k/19
  points=[(.22+.17*t,-.54+.05*t,6.06-.045*t),(.10-.14*t,-.80-.014*t,5.70-.085*t),(-.07-.23*t,-.846-.010*t,5.29-.10*t),(-.17-.39*t+.015*sin(k),-.87+.05*t,4.91+.09*sin(k*1.8)**2)]
- lock('wispy swept fringe %02d'%k,points,random.uniform(.0025,.0045),.0025,3,random.choice([0,0,1,3]))
-for k in range(7):
- t=k/6
+ lock('wispy swept fringe %02d'%k,points,random.uniform(.0035,.0060),.003,4,random.choice([0,0,1,3]))
+for k in range(10):
+ t=k/9
  points=[(.36+.025*t,-.67,5.94),(.43-.05*t,-.828,5.56),(.38-.085*t,-.857,5.20),(.22-.11*t,-.879,4.93+.14*t)]
- lock('central separated wisp %02d'%k,points,random.uniform(.0025,.0032),.002,3,0)
+ lock('central separated wisp %02d'%k,points,random.uniform(.0030,.0040),.0025,3,0)
 # A few thin face-framing pieces soften the edge near the left ear.
 for k in range(5):
  t=k/4
@@ -593,6 +629,7 @@ for ob in head_objs:
    if vertex.co.z>5.30:vertex.co.z+=CFG.get('crown_fullness',.34)*((vertex.co.z-5.30)/.905)**2
  if ob.name.startswith('Ear'):
   meanx=ob.location.x+sum(v.co.x for v in ob.data.vertices)/len(ob.data.vertices)*ob.scale.x;ob.location.x+=(.055 if meanx>0 else -.055);ob.location.y-=.018
+bpy.context.view_layer.update()
 for ob in head_objs:
  if ob.name.startswith('Ear'):
   mean_x=ob.matrix_world.translation.x+sum(v.co.x for v in ob.data.vertices)/len(ob.data.vertices)*ob.scale.x
@@ -600,6 +637,9 @@ for ob in head_objs:
   pivot=Vector((sign*1.07,.035,4.40))
   transform=Matrix.Translation(pivot)@Matrix.Rotation(sign*.34,4,'Z')@Matrix.Translation(-pivot)
   ob.matrix_world=transform@ob.matrix_world
+bpy.context.view_layer.update()
+from groom_pose import relax_lower_hair
+print('GRAVITY-AWARE GROOM',relax_lower_hair(head_objs,CFG.get('head_tilt',.165),CFG.get('head_turn',.060)),flush=True)
 # Pose is applied coherently to the complete head, ears, lids and hair.
 root=bpy.data.objects.new('Head pose | soft reference tilt',None);CHAR.objects.link(root);root.location=(0,0,3.72)
 bpy.context.view_layer.update()
@@ -618,8 +658,8 @@ bpy.context.view_layer.update()
 authored_object_count=len(CHAR.objects)
 groups={}
 for ob in list(CHAR.objects):
- if ob.type=='MESH' and len(ob.data.materials)==1:
-  groups.setdefault((ob.data.materials[0].name,ob.parent.name if ob.parent else ''),[]).append(ob)
+ if ob.type=='MESH' and len(ob.data.materials)>=1:
+  groups.setdefault((' / '.join(material.name for material in ob.data.materials),ob.parent.name if ob.parent else ''),[]).append(ob)
 for key,objects in groups.items():
  if len(objects)<2:continue
  bpy.ops.object.select_all(action='DESELECT')
@@ -682,6 +722,12 @@ scene['review_revision']=args.revision
 bpy.ops.wm.save_as_mainfile(filepath=str(REV/(PREFIX+'.blend')))
 if args.export:
  print('EXPORTING GLB',flush=True)
+ # The saved Blender scene stays full resolution; only evaluated web-export fibers receive this modifier.
+ for ob in CHAR.objects:
+  if ob.type=='MESH' and any('fine fiber' in material.name for material in ob.data.materials if material):
+   modifier=ob.modifiers.new('Web LOD | adaptive fine strands','DECIMATE')
+   modifier.decimate_type='DISSOLVE';modifier.angle_limit=.012;modifier.delimit={'MATERIAL'}
+
  bpy.ops.object.select_all(action='DESELECT')
  for ob in CHAR.objects:ob.select_set(True)
  bpy.context.view_layer.objects.active=next(o for o in CHAR.objects if o.type=='MESH')
@@ -689,6 +735,6 @@ if args.export:
   bpy.ops.export_scene.gltf(filepath=str(REV/(PREFIX+'.glb')),export_format='GLB',use_selection=True,export_apply=True,export_yup=True,export_animations=False,export_cameras=False,export_lights=False,export_texcoords=False,export_normals=True,export_colors=True,export_materials='EXPORT')
  except Exception as e:
   print('GLB_EXPORT_ERROR',repr(e),flush=True)
-stats={'revision':args.revision,'objects':len(CHAR.objects),'authored_objects_before_batching':authored_object_count,'mesh_polygons':sum(len(o.data.polygons) for o in CHAR.objects if o.type=='MESH'),'mesh_vertices':sum(len(o.data.vertices) for o in CHAR.objects if o.type=='MESH'),'source':'all original procedural geometry','renderer':scene.render.engine,'config':CFG}
+stats={'revision':args.revision,'git_commit':SOURCE_REPORT['git_commit'],'source_snapshot_sha256':SOURCE_REPORT['sha256'],'objects':len(CHAR.objects),'authored_objects_before_batching':authored_object_count,'mesh_polygons':sum(len(o.data.polygons) for o in CHAR.objects if o.type=='MESH'),'mesh_vertices':sum(len(o.data.vertices) for o in CHAR.objects if o.type=='MESH'),'source':'all original procedural geometry','renderer':scene.render.engine,'config':CFG}
 (REV/'build-report.json').write_text(json.dumps(stats,indent=2))
 print('BUILD_DONE',json.dumps(stats),flush=True)
