@@ -7,3 +7,7 @@ build
 preview/build
 preview/reference.png
 preview/inspection.png
+
+archive/
+core
+core.*
