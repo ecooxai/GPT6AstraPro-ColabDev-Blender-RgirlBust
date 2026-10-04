@@ -76,7 +76,7 @@ catchmat=mat('Corneal catchlight','FFF9EF',.09)
 pc=catchmat.node_tree.nodes.get('Principled BSDF');pc.inputs['Emission Color'].default_value=(.7,.65,.6,1);pc.inputs['Emission Strength'].default_value=.6
 hairmats=[]
 for name,c in [('espresso','241A19'),('walnut','30211E'),('warm strands','3E2C26'),('cool sheen','382C2B'),('fine glints','4A3631')]:
- m=mat('HAIR | '+name,c,CFG.get('hair_roughness',.38));p=m.node_tree.nodes.get('Principled BSDF');p.inputs['Anisotropic'].default_value=.45
+ m=mat('HAIR | '+name,c,CFG.get('hair_roughness',.38));p=m.node_tree.nodes.get('Principled BSDF');p.inputs['Anisotropic'].default_value=.55;p.inputs['Specular IOR Level'].default_value=.20
  hairmats.append(m)
 shirt=mat('SHIRT | white cotton, procedural weave','E5E7EB',.71)
 nt=shirt.node_tree;p=nt.nodes.get('Principled BSDF');p.inputs['Sheen Weight'].default_value=.16
@@ -135,7 +135,7 @@ def interp(table,z,col=1):
    return (2*t**3-3*t*t+1)*a[col]+(t**3-2*t*t+t)*h*m0+(-2*t**3+3*t*t)*b[col]+(t**3-t*t)*h*m1
 
 def gauss(x,z,cx,cz,wx,wz):return exp(-((x-cx)/wx)**2-((z-cz)/wz)**2)
-HEAD=[(3.10,.015,-.22,.32),(3.17,.25,-.57,.48),(3.29,.48,-.73,.61),(3.46,.69,-.81,.70),(3.64,.83,-.82,.79),(3.88,.96,-.80,.88),(4.12,1.015,-.79,.93),(4.37,1.045,-.765,.95),(4.62,1.04,-.735,.96),(4.87,1.03,-.75,.95),(5.12,1.015,-.79,.94),(5.42,1.01,-.78,.93),(5.67,.93,-.71,.85),(5.89,.70,-.51,.64),(6.06,.35,-.22,.35),(6.12,.008,.07,.09)]
+HEAD=[(3.10,.015,-.22,.32),(3.17,.25,-.57,.48),(3.29,.43,-.73,.61),(3.46,.62,-.81,.70),(3.64,.78,-.82,.79),(3.88,.92,-.80,.88),(4.12,1.015,-.79,.93),(4.37,1.045,-.765,.95),(4.62,1.04,-.735,.96),(4.87,1.03,-.75,.95),(5.12,1.015,-.79,.94),(5.42,1.01,-.78,.93),(5.67,.93,-.71,.85),(5.89,.70,-.51,.64),(6.06,.35,-.22,.35),(6.12,.008,.07,.09)]
 NOSE=[(3.83,0,.12),(3.90,.10,.17),(3.975,.31,.185),(4.055,.43,.17),(4.13,.40,.145),(4.28,.29,.12),(4.48,.20,.115),(4.70,.11,.13),(4.91,0,.16)]
 
 def face_y(x,z):
@@ -145,7 +145,7 @@ def face_y(x,z):
  y-=.042*gauss(x,z,0,3.61,.38,.22)
  for s in [-1,1]:
   y-=.074*gauss(x,z,s*.62,4.23,.32,.23)
-  y+=.10*gauss(x,z,s*.46,4.66,.36,.19)
+  y+=.018*gauss(x,z,s*.46,4.66,.34,.18)
   y-=.068*gauss(x,z,s*.45,4.94,.39,.14)
  y-=CFG.get('nose_depth',1.0)*interp(NOSE,z)*exp(-(x/interp(NOSE,z,2))**2)
  for s in [-1,1]:y-=.10*gauss(x,z,s*.18,3.986,.097,.065)
@@ -153,7 +153,7 @@ def face_y(x,z):
  return y
 
 def complexion(x,z):
- base=rgb(CFG.get('skin','E8B5A0'));blush=rgb('DDA093');nosecol=rgb('E0A18D')
+ base=rgb(CFG.get('skin','E8B5A0'));blush=rgb('D88F87');nosecol=rgb('E0A18D')
  k=.34*sum(gauss(x,z,s*.64,4.22,.28,.22) for s in [-1,1]);k+=.16*gauss(x,z,0,4.04,.24,.11)
  return tuple(base[i]*(1-k)+blush[i]*k for i in range(3))
 
@@ -165,15 +165,23 @@ for j in range(M+1):
   if cos(th)>0:y=face_y(x,z)
   vs.append((x,y,z));cols.append(complexion(x,z) if cos(th)>0 else rgb(CFG.get('skin','E8B5A0')))
 for j in range(M):
- for k in range(N):fs.append((j*N+k,j*N+(k+1)%N,(j+1)*N+(k+1)%N,(j+1)*N+k))
+ for k in range(N):
+  ids=(j*N+k,j*N+(k+1)%N,(j+1)*N+(k+1)%N,(j+1)*N+k)
+  center=sum((Vector(vs[i]) for i in ids),Vector())/4
+  hole=False
+  if center.y<0:
+   for sign in [-1,1]:
+    q=center.x-sign*CFG.get('eye_x',.445);h=center.z-CFG.get('eye_z',4.66)-.038*sign*q
+    if (q/(CFG.get('eye_width',.245)*1.19))**2+(h/(.150 if h>0 else .122))**2<1:hole=True
+  if not hole:fs.append(ids)
 head=mesh('Face | continuous original nose, cheeks, jaw and cranium',vs,fs,skin,True,cols)
 # Mild lower face refinement remains in the continuous mesh, not a stack of primitives.
 
 # Eyes: almond scleral patches with spherical depth, continuous sculpted skin lids.
-EYEZ=CFG.get('eye_z',4.66);EYEX=CFG.get('eye_x',.445);EYER=.355;EYEY=CFG.get('eye_y',-.588);EW=CFG.get('eye_width',.315);UP=CFG.get('eye_up',.133);LOW=CFG.get('eye_low',.101)
+EYEZ=CFG.get('eye_z',4.66);EYEX=CFG.get('eye_x',.445);EYER=CFG.get('eye_radius',.275);EYEY=CFG.get('eye_y',-.49);EW=CFG.get('eye_width',.315);UP=CFG.get('eye_up',.133);LOW=CFG.get('eye_low',.101)
 def eyeco(s,q,h,extra=0):
  x=s*EYEX+q;z=EYEZ+h+.038*s*q
- y=EYEY-sqrt(max(.0001,EYER*EYER-q*q-h*h))-extra
+ y=EYEY-sqrt(max(.0001,EYER*EYER-q*q-h*h))+.22*s*q-extra
  return (x,y,z)
 def eye_boundary(th):
  q=EW*cos(th);h=(UP if sin(th)>0 else LOW)*sin(th)*(abs(sin(th))**.18)
@@ -189,7 +197,7 @@ for s in [-1,1]:
   for k in range(96):f.append((a+k,b+k,b+(k+1)%96,a+(k+1)%96))
  mesh('Eye '+side+' | spherical almond sclera',v,f,white,True)
  # Real radial iris surface, no photograph or generated texture.
- v=[];f=[];c=[];IR=CFG.get('iris_radius',.121);PUP=.050
+ v=[];f=[];c=[];IR=CFG.get('iris_radius',.103);PUP=.043
  for r in range(15):
   rad=IR*r/14
   for k in range(144):
@@ -238,7 +246,7 @@ for s in [-1,1]:
   u=-.8+1.6*k/12;q=EW*u;h=-LOW*sqrt(1-u*u);p=Vector(eyeco(s,q,h,.010))
   tube('Lower lash '+side+str(k),[p,p+Vector((u*.014,-.016,-.018)),p+Vector((u*.025,-.020,-.028))],.0015,browmat,True,4,True,7)
  # Catchlights are small pieces of 3D corneal geometry, not image dots.
- for q,h,rr in [(-.037,.045,.021),(.034,-.031,.007)]:
+ for q,h,rr in [(-.029,.035,.012),(.030,-.024,.004)]:
   loc=eyeco(s,q,h,.012);sphere('Eye '+side+' | corneal catchlight',loc,(rr,.003,rr*.8),catchmat,True,20,12)
  # Brows composed of hundreds of thin original hairs with a soft root silhouette.
  for k in range(175):
@@ -255,21 +263,25 @@ for s in [-1,1]:
   t=k/23;x=s*(.198+.030*sin(pi*t));z=4.025-.080*t;pts.append((x,face_y(x,z)-.003,z))
  tube('Alar crease '+str(s),pts,.0035,crease,True,5)
 # Lip surfaces with cupid bow and soft integration into surrounding skin.
-MW=CFG.get('mouth_width',.305);MZ=CFG.get('mouth_z',3.625)
+MW=CFG.get('mouth_width',.278);MZ=CFG.get('mouth_z',3.625)
 def mouthline(u):return MZ-.012*abs(u)+.007*cos(u*pi)
-def upperlip(u):return (1-u*u)**.75*(.068+.027*exp(-((abs(u)-.34)/.20)**2)-.011*exp(-(u/.15)**2))
-def lowerlip(u):return .112*(max(0,1-u*u)**.80)
+def upperlip(u):return (1-u*u)**.75*(.055+.014*exp(-((abs(u)-.34)/.23)**2)-.006*exp(-(u/.16)**2))
+def lowerlip(u):return .098*(max(0,1-u*u)**.80)
+lip_surfaces=[]
+for source in [lip,lip_light]:
+ m=source.copy();m.name=source.name+' | feathered edge';nt=m.node_tree;vc=nt.nodes.new('ShaderNodeVertexColor');vc.layer_name='LipTint';nt.links.new(vc.outputs['Color'],nt.nodes.get('Principled BSDF').inputs['Base Color']);lip_surfaces.append(m)
 for top in [True,False]:
- vs=[];fs=[]
+ vs=[];fs=[];colors=[]
  for i in range(81):
   u=-1+2*i/80;x=MW*u;line=mouthline(u);extent=upperlip(u) if top else -lowerlip(u)
   for j in range(11):
    t=j/10;z=line+extent*t;edge=face_y(x,z)-.007
    bulge=(.070 if top else .084)*sin(pi*t*.92)*(max(0,1-u*u)**.6)+.021*(1-t)*(1-u*u)
    vs.append((x,edge-bulge,z))
+   blend=max(0,(t-.65)/.35)**.6;sc=complexion(x,z);lc=rgb('BC7975' if top else 'D38D84');colors.append(tuple(lc[k]*(1-blend)+sc[k]*blend for k in range(3)))
  for i in range(80):
   for j in range(10):q=i*11+j;fs.append((q,q+11,q+12,q+1))
- mesh('Mouth | '+('sculpted cupid bow' if top else 'soft lower lip'),vs,fs,lip if top else lip_light,True)
+ mesh('Mouth | '+('sculpted cupid bow' if top else 'soft lower lip'),vs,fs,lip_surfaces[0 if top else 1],True,colors,'LipTint')
 pts=[]
 for i in range(90):
  u=-1+2*i/89;x=MW*u;z=mouthline(u);pts.append((x,face_y(x,z)-.030*(1-u*u)-.010,z))
@@ -311,24 +323,21 @@ def shirt_y(x,z):
  w=interp(TORSO,z);fr=interp(TORSO,z,2);ba=interp(TORSO,z,3)
  y=(fr+ba)/2-(ba-fr)/2*sqrt(max(.001,1-(x/max(.1,w))**2))
  # Low-amplitude fabric tensions originate near the placket, shoulder, and side seam.
- y-=.024*sin(13*z+4*x)*exp(-((abs(x)-.36)/.23)**2)
- y-=.026*sin(17*z-7*abs(x))*exp(-((abs(x)-1.45)/.24)**2)
- y-=.018*sin(19*z+3*x)*exp(-((z-.3)/.27)**2)
+ y-=.010*sin(13*z+4*x)*exp(-((abs(x)-.36)/.23)**2)
+ y-=.014*sin(17*z-7*abs(x))*exp(-((abs(x)-1.45)/.24)**2)
+ y-=.010*sin(19*z+3*x)*exp(-((z-.3)/.27)**2)
  return y
 v=[];f=[];NN=160;MM=115
 for j in range(MM+1):
  z=-.14+2.94*j/MM;w=interp(TORSO,z);fr=interp(TORSO,z,2);ba=interp(TORSO,z,3)
- for k in range(NN):
-  th=2*pi*k/NN;x=w*sin(th);y=shirt_y(x,z) if cos(th)>0 else (fr+ba)/2-(ba-fr)/2*cos(th)
-  if cos(th)<=0:y+=.009*sin(15*z+3*x)
+ opening=.44*max(0,(z-1.90)/.90);theta0=math.asin(min(.98,opening/w))
+ for k in range(NN+1):
+  th=theta0+(2*pi-2*theta0)*k/NN;x=w*sin(th);y=shirt_y(x,z) if cos(th)>0 else (fr+ba)/2-(ba-fr)/2*cos(th)
+  if cos(th)<=0:y+=.006*sin(15*z+3*x)
   v.append((x,y,z))
 for j in range(MM):
- for k in range(NN):
-  ids=(j*NN+k,j*NN+(k+1)%NN,(j+1)*NN+(k+1)%NN,(j+1)*NN+k);cen=sum((Vector(v[a]) for a in ids),Vector())/4
-  # A genuine V-shaped aperture. No flesh-colored painted insert.
-  if cen.y<.04 and cen.z>1.90 and abs(cen.x)<.44*(cen.z-1.90)/.90:continue
-  f.append(ids)
-f.append(tuple(range(NN-1,-1,-1)))
+ for k in range(NN):f.append((j*(NN+1)+k,j*(NN+1)+k+1,(j+1)*(NN+1)+k+1,(j+1)*(NN+1)+k))
+f.append(tuple(range(NN,-1,-1)))
 ob=mesh('Shirt | tailored closed torso with open neckline',v,f,shirt);mod=ob.modifiers.new('Cotton thickness','SOLIDIFY');mod.thickness=.014
 # Full sleeves, open lower bust crop but closed geometrical cut ends.
 for s in [-1,1]:
@@ -368,7 +377,7 @@ collar_patch(-1);collar_patch(1)
 v=[];f=[]
 for j in range(2):
  for k in range(97):
-  th=.50+(2*pi-1.0)*k/96;z=2.70+.03*cos(th)+j*.12;v.append((.425*sin(th),.04-.27*cos(th),z))
+  th=1.20+(2*pi-2.40)*k/96;z=2.70+.03*cos(th)+j*.12;v.append((.425*sin(th),.04-.27*cos(th),z))
 for k in range(96):f.append((k,k+1,97+k+1,97+k))
 ob=mesh('Collar | continuous rear neckband',v,f,shirt);mod=ob.modifiers.new('Collar band thickness','SOLIDIFY');mod.thickness=.018
 # Soft front placket with three-dimensional buttons and stitching.
@@ -396,19 +405,47 @@ print('CLOTHING BUILT',flush=True)
 
 # Hair. A closed scalp shell supports layered, volumetric swept locks.
 # Every fiber below is authored 3D geometry; no cards, scanned hair, or photo textures.
-v=[];f=[];HS=144;HR=44
+v=[];f=[];HS=144;HR=52
 for j in range(HR+1):
  for k in range(HS):
-  th=2*pi*k/HS;maxphi=1.18+.70*(1-cos(th))/2+.16*abs(sin(th));phi=.008+(maxphi-.008)*j/HR
-  x=1.11*sin(phi)*sin(th);y=.065-1.00*sin(phi)*cos(th);z=4.62+1.61*cos(phi)
-  v.append((x,y,z))
+  th=2*pi*k/HS;bottom=5.46-.68*abs(sin(th))-.92*(1-cos(th))/2
+  z=6.205-(6.205-bottom)*(j/HR)**.84;hz=min(6.118,z-.060)
+  w=interp(HEAD,hz)+.056;fr=interp(HEAD,hz,2)-.075;ba=interp(HEAD,hz,3)+.064
+  x=w*sin(th);y=(fr+ba)/2-(ba-fr)/2*cos(th);v.append((x,y,z))
 for j in range(HR):
  for k in range(HS):f.append((j*HS+k,j*HS+(k+1)%HS,(j+1)*HS+(k+1)%HS,(j+1)*HS+k))
-mesh('Hair | closed anatomical scalp foundation',v,f,hairmats[0],True)
+mesh('Hair | nonintersecting original scalp foundation',v,f,hairmats[0],True)
+# Back hair volume is closed around the ends; fine locks live above this surface.
+v=[];f=[];HC=96;HZ=60
+for layer in [0,1]:
+ for j in range(HZ+1):
+  t=j/HZ
+  for k in range(HC+1):
+   th=.85+(2*pi-1.70)*k/HC;bottom=.73+.14*cos(2*th);z=4.57+(bottom-4.57)*t
+   wid=1.14+.16*sin(pi*t)-.17*t**5;dep=.99-.23*t
+   x=(wid-.065*layer)*sin(th);y=.10-(dep-.065*layer)*cos(th);v.append((x,y,z))
+S=(HZ+1)*(HC+1)
+for layer in [0,1]:
+ for j in range(HZ):
+  for k in range(HC):
+   q=layer*S+j*(HC+1)+k;face=(q,q+1,q+HC+2,q+HC+1);f.append(face if layer==0 else tuple(reversed(face)))
+for j in range(HZ):
+ for k in [0,HC]:
+  q=j*(HC+1)+k;f.append((q,q+HC+1,q+HC+1+S,q+S))
+for k in range(HC):
+ q=HZ*(HC+1)+k;f.append((q,q+S,q+1+S,q+1))
+mesh('Hair | full back volume and closed ends',v,f,hairmats[0],True)
 
 FIBERS=CFG.get('fibers_per_lock',11)
 def lock(name,points,width,depth=.035,fibers=FIBERS,mati=0):
- ps=sample(points,56);v=[];f=[];frames=[];old=None
+ ps=sample(points,56)
+ # Guides above the ears are projected outside the actual scalp, avoiding head intersections.
+ for point in ps:
+  if point.z>4.70:
+   hz=min(6.112,point.z-.018);w=interp(HEAD,hz)+.105;fr=interp(HEAD,hz,2)-.130;ba=interp(HEAD,hz,3)+.100;cy=(fr+ba)/2;ry=(ba-fr)/2
+   distance=sqrt((point.x/w)**2+((point.y-cy)/ry)**2)
+   if distance<1 and distance>.02:point.x/=distance;point.y=cy+(point.y-cy)/distance
+ v=[];f=[];frames=[];old=None
  for i,p in enumerate(ps):
   t=i/(len(ps)-1);tangent=(ps[min(len(ps)-1,i+1)]-ps[max(0,i-1)]).normalized()
   if p.z>5.20:normal=Vector((p.x*.65,p.y-.1,(p.z-5.15)*.72)).normalized()
@@ -443,7 +480,7 @@ for s in [-1,1]:
   if s<0:
    points=[(.19-.04*t,-.18-.13*t,6.16-.025*t),(-.36,-.57-.03*t,6.09-.12*t),(-.88,-.68-.03*t,5.60-.23*t),(-1.035+ofs*.2,-.60-.06*t,4.82),(-1.06+ofs*.35,-.41-.15*t,3.86),(-1.13+ofs*.55,-.48-.18*t,2.91),(-1.20+ofs,-.58-.16*t,2.13),(-1.45+ofs*.8,-.64-.13*t,1.26),(-1.52+ofs*.5,-.66-.12*t,.74),(-1.25+ofs,-.67-.10*t,.30+.35*t)]
   else:
-   points=[(.23+.04*t,-.17-.12*t,6.15-.02*t),(.71,-.57-.05*t,5.93-.06*t),(1.045,-.62-.03*t,5.24),(1.08+ofs*.1,-.42-.09*t,4.42),(1.11+ofs*.3,-.34-.10*t,3.55),(1.23+ofs*.55,-.47-.12*t,2.77),(1.37+ofs,-.61-.16*t,2.12),(1.55+ofs*.8,-.66-.13*t,1.49),(1.46+ofs*.8,-.69-.14*t,.94),(1.11+ofs,-.65-.1*t,.52+.27*t)]
+   points=[(.23+.04*t,-.17-.12*t,6.15-.02*t),(.71,-.57-.05*t,5.93-.06*t),(1.045,-.62-.03*t,5.24),(1.08+ofs*.1,-.42-.09*t,4.42),(1.11+ofs*.3,-.34-.10*t,3.55),(1.23+ofs*.55,-.47-.12*t,2.77),(1.37+ofs,-.61-.16*t,2.12),(1.55+ofs*.8,-.66-.13*t,1.49),(1.46+ofs*.8,-.69-.14*t,.94),(1.11+ofs,-.65-.1*t,.28+.40*t)]
   lock(('left' if s<0 else 'right')+' front fall %02d'%k,points,.055+random.random()*.035,.027,14,random.choice([0,1,1,3]))
 # Swept forehead fringe, sparse enough to reveal the forehead.
 for k in range(9):
@@ -484,8 +521,8 @@ def area(name,loc,target,power,size,color,size_y=None):
  ob=bpy.data.objects.new(name,data);STAGE.objects.link(ob);ob.location=loc;ob.rotation_euler=(Vector(target)-ob.location).to_track_quat('-Z','Y').to_euler();data.use_shadow=True
 area('Key | large soft portrait window',(-3.5,-5.3,7.0),(0,0,4),CFG.get('key_power',950),4.0,(1.0,.89,.82))
 area('Fill | cool frontal silk',(3.5,-4.2,4.7),(0,0,3.8),CFG.get('fill_power',330),3.4,(.84,.90,1.0))
-area('Hair rim | cool high strip',(2.8,1.2,7.2),(0,0,4.3),780,2.6,(.88,.91,1.0),1.7)
-area('Hair separation | warm left',(-3.1,1.0,5.5),(0,0,3.7),600,2.6,(1,.81,.71),3.2)
+area('Hair rim | cool high strip',(2.8,1.2,7.2),(0,0,4.3),360,2.6,(.88,.91,1.0),1.7)
+area('Hair separation | warm left',(-3.1,1.0,5.5),(0,0,3.7),260,2.6,(1,.81,.71),3.2)
 area('Eye card | subtle frontal catchlight',(-.9,-5.1,5.4),(0,-.5,4.5),55,1.0,(1,.97,.91),.6)
 # Typography is real Blender text placed above the character.
 titlemat=mat('Studio typography | warm silver','BABCB2',.70)

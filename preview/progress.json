@@ -1,8 +1,8 @@
 {
-  "revision": 1,
-  "score": 10.0,
-  "status": "First build \u2014 pose-origin failure found",
-  "updated": "2026-10-04T11:05:40+00:00",
+  "revision": 2,
+  "score": 28.0,
+  "status": "Connected bust \u2014 anatomy and hair defects identified",
+  "updated": "2026-10-04T11:09:50+00:00",
   "project": "/home/dev/project/3d/GPT6AstraPro_ColabDev_Blender_RgirlBust",
   "build": "/build/GPT6AstraPro_ColabDev_Blender_RgirlBust",
   "iterations": [
@@ -13,6 +13,14 @@
       "review": "Visual inspection: the head and hair were displaced above the neck by an unupdated parent transform. Shirt surface interpolation also produces bands. Not an acceptable likeness; correcting structure before detail.",
       "image": "build/revisions/r001/front.png",
       "path": "/build/GPT6AstraPro_ColabDev_Blender_RgirlBust/revisions/r001/front.png"
+    },
+    {
+      "id": 2,
+      "score": 28.0,
+      "title": "Connected bust \u2014 anatomy and hair defects identified",
+      "review": "Head transform is corrected. Eyes remain oversized and protrude unnaturally; scalp intersects the forehead; hair reads as rigid bright strips. Lower face and shirt opening need refinement. Reviewed front and close-up.",
+      "image": "build/revisions/r002/front.png",
+      "path": "/build/GPT6AstraPro_ColabDev_Blender_RgirlBust/revisions/r002/front.png"
     }
   ],
   "files": [
@@ -26,13 +34,13 @@
       "label": "Interactive 3D model \u00b7 GLB",
       "url": "build/latest/GPT6AstraPro_ColabDev_Blender_RgirlBust.glb",
       "path": "/build/GPT6AstraPro_ColabDev_Blender_RgirlBust/latest/GPT6AstraPro_ColabDev_Blender_RgirlBust.glb",
-      "size": "14.0 MB"
+      "size": "14.1 MB"
     },
     {
       "label": "EEVEE portrait \u00b7 PNG",
       "url": "build/latest/GPT6AstraPro_ColabDev_Blender_RgirlBust_portrait.png",
       "path": "/build/GPT6AstraPro_ColabDev_Blender_RgirlBust/latest/GPT6AstraPro_ColabDev_Blender_RgirlBust_portrait.png",
-      "size": "0.9 MB"
+      "size": "1.0 MB"
     }
   ],
   "notes": "Single-reference reconstruction. All character geometry and materials are original. No reference-photo texture is used. The score is a subjective visual review, not an external similarity measurement. Requested iteration budget: 20,000; only completed, inspected revisions are counted.",
@@ -43,8 +51,8 @@
   "views": [
     {
       "label": "Facial anatomy detail",
-      "url": "build/revisions/r001/face.png",
-      "path": "/build/GPT6AstraPro_ColabDev_Blender_RgirlBust/revisions/r001/face.png"
+      "url": "build/revisions/r002/face.png",
+      "path": "/build/GPT6AstraPro_ColabDev_Blender_RgirlBust/revisions/r002/face.png"
     }
   ]
 }

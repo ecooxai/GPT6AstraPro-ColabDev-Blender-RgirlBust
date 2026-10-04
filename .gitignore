@@ -3,3 +3,7 @@ logs/
 __pycache__/
 *.blend1
 node_modules/
+build
+preview/build
+preview/reference.png
+preview/inspection.png
