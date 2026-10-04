@@ -1,8 +1,8 @@
 {
-  "revision": 3,
-  "score": 38.0,
-  "status": "Inset eyes and clean neckline \u2014 silhouette review",
-  "updated": "2026-10-04T11:18:32+00:00",
+  "revision": 4,
+  "score": 46.0,
+  "status": "Wider facial reveal and 29 grouped objects",
+  "updated": "2026-10-04T11:30:55+00:00",
   "project": "/home/dev/project/3d/GPT6AstraPro_ColabDev_Blender_RgirlBust",
   "build": "/build/GPT6AstraPro_ColabDev_Blender_RgirlBust",
   "iterations": [
@@ -29,6 +29,14 @@
       "review": "Scalp intersections are reduced and the neckline is clean. Side view reveals an overly projecting nose and hair foundation clipping. Front curtain hides too much of the cheeks. Browser tests pass on desktop and mobile without JavaScript errors.",
       "image": "build/revisions/r003/front.png",
       "path": "/build/GPT6AstraPro_ColabDev_Blender_RgirlBust/revisions/r003/front.png"
+    },
+    {
+      "id": 4,
+      "score": 46.0,
+      "title": "Wider facial reveal and 29 grouped objects",
+      "review": "Cheeks are visible, the nose projection is reduced, and all four views render. Original objects were batched from 2,608 to 29. Remaining issues: eyelid seams, sparse forward hair mass, smooth scalp patches, and a discontinuity in rear hair curvature.",
+      "image": "build/revisions/r004/front.png",
+      "path": "/build/GPT6AstraPro_ColabDev_Blender_RgirlBust/revisions/r004/front.png"
     }
   ],
   "files": [
@@ -36,13 +44,13 @@
       "label": "Editable Blender scene",
       "url": "build/latest/GPT6AstraPro_ColabDev_Blender_RgirlBust.blend",
       "path": "/build/GPT6AstraPro_ColabDev_Blender_RgirlBust/latest/GPT6AstraPro_ColabDev_Blender_RgirlBust.blend",
-      "size": "41.7 MB"
+      "size": "46.7 MB"
     },
     {
       "label": "Interactive 3D model \u00b7 GLB",
       "url": "build/latest/GPT6AstraPro_ColabDev_Blender_RgirlBust.glb",
       "path": "/build/GPT6AstraPro_ColabDev_Blender_RgirlBust/latest/GPT6AstraPro_ColabDev_Blender_RgirlBust.glb",
-      "size": "14.6 MB"
+      "size": "29.0 MB"
     },
     {
       "label": "EEVEE portrait \u00b7 PNG",
@@ -59,13 +67,18 @@
   "views": [
     {
       "label": "Facial anatomy detail",
-      "url": "build/revisions/r003/face.png",
-      "path": "/build/GPT6AstraPro_ColabDev_Blender_RgirlBust/revisions/r003/face.png"
+      "url": "build/revisions/r004/face.png",
+      "path": "/build/GPT6AstraPro_ColabDev_Blender_RgirlBust/revisions/r004/face.png"
     },
     {
       "label": "Side silhouette",
-      "url": "build/revisions/r003/side.png",
-      "path": "/build/GPT6AstraPro_ColabDev_Blender_RgirlBust/revisions/r003/side.png"
+      "url": "build/revisions/r004/side.png",
+      "path": "/build/GPT6AstraPro_ColabDev_Blender_RgirlBust/revisions/r004/side.png"
+    },
+    {
+      "label": "Rear hair construction",
+      "url": "build/revisions/r004/back.png",
+      "path": "/build/GPT6AstraPro_ColabDev_Blender_RgirlBust/revisions/r004/back.png"
     }
   ]
 }

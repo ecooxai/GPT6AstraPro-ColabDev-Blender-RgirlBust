@@ -5,6 +5,8 @@ Front is -Y, up is Z. Units are artistic portrait units, not measured anatomy.
 import bpy, math, random, json, sys, argparse, os, time
 from pathlib import Path
 from mathutils import Vector
+from mathutils.geometry import delaunay_2d_cdt
+import bmesh
 from math import sin, cos, pi, sqrt, exp
 ROOT=Path(__file__).resolve().parents[1]
 args=sys.argv[sys.argv.index('--')+1:] if '--' in sys.argv else []
@@ -69,6 +71,7 @@ waterline=mat('Lid margin | muted rose','C99183',.44,sub=.04)
 lashmat=mat('Lashes | dark brown','241714',.53)
 browmat=mat('Brows | individual tapered hairs','45312A',.68)
 white=mat('Sclera | warm ivory','F0E1D7',.27,sub=.025)
+nt=white.node_tree;vc=nt.nodes.new('ShaderNodeVertexColor');vc.layer_name='ScleraTint';nt.links.new(vc.outputs['Color'],nt.nodes.get('Principled BSDF').inputs['Base Color'])
 irismat=mat('Iris | original radial vertex pigment','573725',.26)
 nt=irismat.node_tree;col=nt.nodes.new('ShaderNodeVertexColor');col.layer_name='IrisPigment';nt.links.new(col.outputs['Color'],nt.nodes.get('Principled BSDF').inputs['Base Color'])
 pupil=mat('Pupils | near black','080707',.19)
@@ -143,7 +146,8 @@ NOSE=[(3.83,0,.12),(3.90,.10,.17),(3.975,.31,.185),(4.055,.43,.17),(4.13,.40,.14
 
 def face_y(x,z):
  w=interp(HEAD,z);f=interp(HEAD,z,2);b=interp(HEAD,z,3);cy=(f+b)/2;dep=(b-f)/2
- y=cy-dep*sqrt(max(0,1-(x/max(w,.01))**2))
+ power=2+.40*exp(-((z-4.65)/.42)**2)+.15*exp(-((z-4.15)/.30)**2)
+ y=cy-dep*max(0,1-(abs(x)/max(w,.01))**power)**(1/power)
  y-=.075*gauss(x,z,0,3.35,.37,.20)
  y-=.042*gauss(x,z,0,3.61,.38,.22)
  for s in [-1,1]:
@@ -160,34 +164,64 @@ def complexion(x,z):
  k=.34*sum(gauss(x,z,s*.64,4.22,.28,.22) for s in [-1,1]);k+=.16*gauss(x,z,0,4.04,.24,.11)
  return tuple(base[i]*(1-k)+blush[i]*k for i in range(3))
 
-vs=[];fs=[];cols=[];N=192;M=180
+# Constrained triangulation in the frontal (theta, z) parameter domain.
+# Both eye loops are actual holes. Their outer lid vertices will be welded into this face mesh.
+NU=144;M=170;NLOOP=128
+polygons=[]
+for sign in [-1,1]:
+ polygon=[]
+ for k in range(NLOOP):
+  th=2*pi*k/NLOOP;q=CFG.get('eye_width',.245)*cos(th);h=(CFG.get('eye_up',.112) if sin(th)>0 else CFG.get('eye_low',.088))*sin(th)*abs(sin(th))**.85
+  oq=q*(1.29+.03*sin(th));oh=h*(1.8 if h>0 else 1.95);x=sign*CFG.get('eye_x',.445)+oq;z=CFG.get('eye_z',4.66)+oh+.038*sign*oq
+  polygon.append((math.asin(x/interp(HEAD,z)),z))
+ polygons.append(polygon)
+bounds=[(min(v[0] for v in poly),max(v[0] for v in poly),min(v[1] for v in poly),max(v[1] for v in poly)) for poly in polygons]
+def inside_eye(point):
+ x,z=point
+ for poly,box in zip(polygons,bounds):
+  if not(box[0]<=x<=box[1] and box[2]<=z<=box[3]):continue
+  inside=False;last=poly[-1]
+  for current in poly:
+   if (current[1]>z)!=(last[1]>z) and x<(last[0]-current[0])*(z-current[1])/(last[1]-current[1])+current[0]:inside=not inside
+   last=current
+  if inside:return True
+ return False
+points=[];edges=[]
 for j in range(M+1):
- z=3.10+(6.12-3.10)*j/M;w=interp(HEAD,z);f=interp(HEAD,z,2);b=interp(HEAD,z,3);cy=(f+b)/2;dep=(b-f)/2
- for k in range(N):
-  th=2*pi*k/N;x=w*sin(th);y=cy-dep*cos(th)
-  if cos(th)>0:y=face_y(x,z)
-  vs.append((x,y,z));cols.append(complexion(x,z) if cos(th)>0 else rgb(CFG.get('skin','E8B5A0')))
+ z=3.10+(6.12-3.10)*j/M
+ for k in range(NU+1):
+  point=(-pi/2+pi*k/NU,z)
+  if not inside_eye(point):points.append(Vector(point))
+for poly in polygons:
+ start_index=len(points);points.extend(Vector(point) for point in poly)
+ edges.extend((start_index+k,start_index+(k+1)%len(poly)) for k in range(len(poly)))
+print('TRIANGULATING ORIGINAL FACE',len(points),'points',flush=True)
+result=delaunay_2d_cdt(points,edges,[],0,0.000001,False)
+vs=[];fs=[];cols=[]
+for th,z in result[0]:
+ x=interp(HEAD,z)*sin(th);vs.append((x,face_y(x,z),z));cols.append(complexion(x,z))
+for face in result[2]:
+ center=sum((result[0][i] for i in face),Vector((0,0)))/len(face)
+ if not inside_eye(center):fs.append(tuple(face))
+offset=len(vs)
+for j in range(M+1):
+ z=3.10+(6.12-3.10)*j/M;w=interp(HEAD,z);fr=interp(HEAD,z,2);ba=interp(HEAD,z,3)
+ for k in range(NU+1):
+  th=pi/2+pi*k/NU;x=w*sin(th);y=(fr+ba)/2-(ba-fr)/2*cos(th);vs.append((x,y,z));cols.append(rgb(CFG.get('skin','E8B5A0')))
 for j in range(M):
- for k in range(N):
-  ids=(j*N+k,j*N+(k+1)%N,(j+1)*N+(k+1)%N,(j+1)*N+k)
-  center=sum((Vector(vs[i]) for i in ids),Vector())/4
-  hole=False
-  if center.y<0:
-   for sign in [-1,1]:
-    q=center.x-sign*CFG.get('eye_x',.445);h=center.z-CFG.get('eye_z',4.66)-.038*sign*q
-    if (q/(CFG.get('eye_width',.245)*1.19))**2+(h/(.150 if h>0 else .122))**2<1:hole=True
-  if not hole:fs.append(ids)
-head=mesh('Face | continuous original nose, cheeks, jaw and cranium',vs,fs,skin,True,cols)
+ for k in range(NU):
+  q=offset+j*(NU+1)+k;fs.append((q,q+1,q+NU+2,q+NU+1))
+head=mesh('Face | original continuous orbital topology, nose and jaw',vs,fs,skin,True,cols)
 # Mild lower face refinement remains in the continuous mesh, not a stack of primitives.
 
 # Eyes: almond scleral patches with spherical depth, continuous sculpted skin lids.
 EYEZ=CFG.get('eye_z',4.66);EYEX=CFG.get('eye_x',.445);EYER=CFG.get('eye_radius',.275);EYEY=CFG.get('eye_y',-.49);EW=CFG.get('eye_width',.315);UP=CFG.get('eye_up',.133);LOW=CFG.get('eye_low',.101)
 def eyeco(s,q,h,extra=0):
  x=s*EYEX+q;z=EYEZ+h+.038*s*q
- y=EYEY-sqrt(max(.0001,EYER*EYER-q*q-h*h))+.22*s*q-extra
+ y=EYEY-EYER+.078*(q/EW)**2+.026*(h/.12)**2+.16*s*q-extra
  return (x,y,z)
 def eye_boundary(th):
- q=EW*cos(th);h=(UP if sin(th)>0 else LOW)*sin(th)*(abs(sin(th))**.18)
+ q=EW*cos(th);h=(UP if sin(th)>0 else LOW)*sin(th)*(abs(sin(th))**.85)
  return q,h
 for s in [-1,1]:
  side='L' if s<0 else 'R';v=[eyeco(s,0,0)];f=[]
@@ -198,7 +232,10 @@ for s in [-1,1]:
  for r in range(1,16):
   a=1+(r-1)*96;b=1+r*96
   for k in range(96):f.append((a+k,b+k,b+(k+1)%96,a+(k+1)%96))
- mesh('Eye '+side+' | spherical almond sclera',v,f,white,True)
+ sclera_colors=[]
+ for point in v:
+  q=point[0]-s*EYEX;k=.48*(min(1,abs(q/EW))**5);a=rgb('EEE1D8');b=rgb('D9A095');sclera_colors.append(tuple(a[j]*(1-k)+b[j]*k for j in range(3)))
+ mesh('Eye '+side+' | spherical almond sclera',v,f,white,True,sclera_colors,'ScleraTint')
  # Real radial iris surface, no photograph or generated texture.
  v=[];f=[];c=[];IR=CFG.get('iris_radius',.103);PUP=.043
  for r in range(15):
@@ -222,8 +259,8 @@ for s in [-1,1]:
   t=r/8
   for k in range(128):
    th=2*pi*k/128;q,h=eye_boundary(th);ix,iy,iz=eyeco(s,q,h,.007)
-   oq=q*(1.29+.03*sin(th));oh=h*(1.8 if h>0 else 1.95);ox=s*EYEX+oq;oz=EYEZ+oh+.038*s*oq;oy=face_y(ox,oz)-.003
-   x=ix*(1-t)+ox*t;z=iz*(1-t)+oz*t;y=iy*(1-t)+oy*t-.012*sin(pi*t)
+   oq=q*(1.29+.03*sin(th));oh=h*(1.8 if h>0 else 1.95);ox=s*EYEX+oq;oz=EYEZ+oh+.038*s*oq;oy=face_y(ox,oz)
+   x=ix*(1-t)+ox*t;z=iz*(1-t)+oz*t;y=iy*(1-t)+oy*t-.003*sin(pi*t)
    v.append((x,y,z));base=complexion(x,z);warm=rgb('DCA18F');blend=.15*(1-t)
    c.append(tuple(base[j]*(1-blend)+warm[j]*blend for j in range(3)))
  for r in range(8):
@@ -233,21 +270,20 @@ for s in [-1,1]:
   pts=[]
   for k in range(65):
    th=pi*k/64 if upper else pi+pi*k/64;q,h=eye_boundary(th);pts.append(eyeco(s,q,h,.010))
-  tube('Eye '+side+(' | upper lash roots' if upper else ' | lower waterline'),pts,.0065 if upper else .005,lashmat if upper else waterline,True,6,False)
- # Upper orbital fold, restrained, interrupted at inner corner.
+  tube('Eye '+side+(' | upper lash roots' if upper else ' | lower waterline'),pts,.0045 if upper else .0035,lashmat if upper else waterline,True,6,False)
+ # A fine orbital fold lies directly on the upper-lid tissue surface.
  pts=[]
  for k in range(48):
-  q=-EW*.83+EW*1.66*k/47;h=UP*sqrt(max(0,1-(q/EW)**2))+.063;x=s*EYEX+q;z=EYEZ+h+.038*s*q
-  y=.62*eyeco(s,q,min(h,UP))[1]+.38*face_y(x,z)-.011
-  pts.append((x,y,z))
- tube('Eye '+side+' | delicate upper fold',pts,.004,crease,True,5)
+  th=pi*(.10+.80*k/47);q,h=eye_boundary(th);ix,iy,iz=eyeco(s,q,h,.007);oq=q*(1.29+.03*sin(th));oh=h*1.8;ox=s*EYEX+oq;oz=EYEZ+oh+.038*s*oq;oy=face_y(ox,oz);t=.56
+  pts.append((ix*(1-t)+ox*t,iy*(1-t)+oy*t-.003*sin(pi*t)-.0015,iz*(1-t)+oz*t))
+ tube('Eye '+side+' | delicate upper fold',pts,.0022,crease,True,5)
  # Individual lashes are fine, not a solid strip.
  for k in range(31):
-  u=-.94+1.88*k/30;q=EW*u;h=UP*(sqrt(max(0,1-u*u))**1.18);p=Vector(eyeco(s,q,h,.015));le=.034+.029*(.5+.5*u*s)
+  u=-.94+1.88*k/30;q=EW*u;h=UP*(sqrt(max(0,1-u*u))**1.85);p=Vector(eyeco(s,q,h,.015));le=.022+.021*(.5+.5*u*s)
   tube('Lash '+side+str(k),[p,p+Vector((u*.014,-.025,.008)),p+Vector((u*.031,-.045,le))],.0023,lashmat,True,4,True,8)
  for k in range(13):
-  u=-.8+1.6*k/12;q=EW*u;h=-LOW*sqrt(1-u*u);p=Vector(eyeco(s,q,h,.010))
-  tube('Lower lash '+side+str(k),[p,p+Vector((u*.014,-.016,-.018)),p+Vector((u*.025,-.020,-.028))],.0015,browmat,True,4,True,7)
+  u=-.8+1.6*k/12;q=EW*u;h=-LOW*(sqrt(1-u*u)**1.85);p=Vector(eyeco(s,q,h,.010))
+  tube('Lower lash '+side+str(k),[p,p+Vector((u*.014,-.016,-.018)),p+Vector((u*.025,-.020,-.019))],.0015,browmat,True,4,True,7)
  # Catchlights are small pieces of 3D corneal geometry, not image dots.
  for q,h,rr in [(-.029,.035,.012),(.030,-.024,.004)]:
   loc=eyeco(s,q,h,.012);sphere('Eye '+side+' | corneal catchlight',loc,(rr,.003,rr*.8),catchmat,True,20,12)
@@ -408,23 +444,29 @@ print('CLOTHING BUILT',flush=True)
 
 # Hair. A closed scalp shell supports layered, volumetric swept locks.
 # Every fiber below is authored 3D geometry; no cards, scanned hair, or photo textures.
-v=[];f=[];HS=144;HR=52
+def scalp_point(th,t):
+ bottom=5.46-.68*abs(sin(th))-.92*(1-cos(th))/2;z=6.205-(6.205-bottom)*t**.84;hz=min(6.118,z-.060)
+ w=interp(HEAD,hz)+.056;fr=interp(HEAD,hz,2)-.075;ba=interp(HEAD,hz,3)+.064
+ return Vector((w*sin(th),(fr+ba)/2-(ba-fr)/2*cos(th),z))
+v=[];f=[];HS=192;HR=64
 for j in range(HR+1):
- for k in range(HS):
-  th=2*pi*k/HS;bottom=5.46-.68*abs(sin(th))-.92*(1-cos(th))/2
-  z=6.205-(6.205-bottom)*(j/HR)**.84;hz=min(6.118,z-.060)
-  w=interp(HEAD,hz)+.056;fr=interp(HEAD,hz,2)-.075;ba=interp(HEAD,hz,3)+.064
-  x=w*sin(th);y=(fr+ba)/2-(ba-fr)/2*cos(th);v.append((x,y,z))
+ for k in range(HS):v.append(tuple(scalp_point(2*pi*k/HS,j/HR)))
 for j in range(HR):
  for k in range(HS):f.append((j*HS+k,j*HS+(k+1)%HS,(j+1)*HS+(k+1)%HS,(j+1)*HS+k))
 mesh('Hair | nonintersecting original scalp foundation',v,[tuple(reversed(face)) for face in f],hairmats[0],True)
+# Crown fibers sit on the actual scalp surface, never on an approximate ellipsoid.
+for k in range(680):
+ angle=2*pi*(k+.27)/680;pts=[]
+ for j in range(48):
+  t=.012+.998*j/47;th=angle+.28*sin(pi*min(1,t))*(1-min(1,t));point=scalp_point(th,t);normal=Vector((point.x,point.y-.04,max(.04,point.z-4.7)*.7)).normalized();point+=normal*.006;pts.append(point)
+ tube('Hair fiber | crown meridian %04d'%k,pts,random.uniform(.0012,.0019),fibermats[random.choice([0,0,1,1,3])],True,4)
 # Back hair volume is closed around the ends; fine locks live above this surface.
 v=[];f=[];HC=96;HZ=60
 for layer in [0,1]:
  for j in range(HZ+1):
   t=j/HZ
   for k in range(HC+1):
-   th=1.25+(2*pi-2.50)*k/HC;bottom=.73+.14*cos(2*th);z=4.57+(bottom-4.57)*t
+   th=1.25+(2*pi-2.50)*k/HC;bottom=.96+.16*cos(2*th)+.035*sin(11*th);z=4.57+(bottom-4.57)*t
    wid=1.14+.16*sin(pi*t)-.17*t**5;dep=.99-.23*t
    x=(wid-.065*layer)*sin(th);y=.10-(dep-.065*layer)*cos(th);v.append((x,y,z))
 S=(HZ+1)*(HC+1)
@@ -442,21 +484,22 @@ mesh('Hair | full back volume and closed ends',v,f,hairmats[0],True)
 FIBERS=CFG.get('fibers_per_lock',11)
 def lock(name,points,width,depth=.035,fibers=FIBERS,mati=0):
  ps=sample(points,56)
- # Guides above the ears are projected outside the actual scalp, avoiding head intersections.
+ # Project into a continuous skull-to-hair envelope, with no hard height transition.
  for point in ps:
-  if point.z>4.70:
-   hz=min(6.112,point.z-.018);w=interp(HEAD,hz)+.105;fr=interp(HEAD,hz,2)-.130;ba=interp(HEAD,hz,3)+.100;cy=(fr+ba)/2;ry=(ba-fr)/2
+  hz=min(6.112,max(3.2,point.z-.065));wh=interp(HEAD,hz)+.115;fr=interp(HEAD,hz,2)-.140;ba=interp(HEAD,hz,3)+.115;cyh=(fr+ba)/2;rh=(ba-fr)/2
+  if name.startswith('rear curtain'):
+   t=max(0,min(1,(4.57-point.z)/3.85));wb=1.14+.16*sin(pi*t)-.17*t**5+.067;rb=.99-.23*t+.060;a=max(0,min(1,(4.98-point.z)/.72));a=a*a*(3-2*a);w=wh*(1-a)+wb*a;ry=rh*(1-a)+rb*a;cy=cyh*(1-a)+.10*a;weight=1
+  else:
+   w=wh;ry=rh;cy=cyh;weight=max(0,min(1,(point.z-4.05)/.75));weight=weight*weight*(3-2*weight)
+  if weight>0:
    distance=sqrt((point.x/w)**2+((point.y-cy)/ry)**2)
-   if distance<1 and distance>.02:point.x/=distance;point.y=cy+(point.y-cy)/distance
-  elif name.startswith('rear curtain'):
-   t=max(0,min(1,(4.57-point.z)/3.85));w=1.14+.16*sin(pi*t)-.17*t**5+.068;ry=.99-.23*t+.060;cy=.10
-   distance=sqrt((point.x/w)**2+((point.y-cy)/ry)**2)
-   if distance<1 and distance>.02:point.x/=distance;point.y=cy+(point.y-cy)/distance
+   if distance>.02:
+    need=1/distance;scale=.5*(1+need+sqrt((1-need)**2+.00020));scale=1+(scale-1)*weight;point.x*=scale;point.y=cy+(point.y-cy)*scale
+ for _ in range(2):ps=[ps[0]]+[(ps[i-1]+2*ps[i]+ps[i+1])/4 for i in range(1,len(ps)-1)]+[ps[-1]]
  v=[];f=[];frames=[];old=None
  for i,p in enumerate(ps):
   t=i/(len(ps)-1);tangent=(ps[min(len(ps)-1,i+1)]-ps[max(0,i-1)]).normalized()
-  if p.z>5.20:normal=Vector((p.x*.65,p.y-.1,(p.z-5.15)*.72)).normalized()
-  else:normal=Vector((p.x*.38,p.y-.22,.03)).normalized()
+  normal=Vector((p.x*.46,p.y-.12,max(.03,p.z-5.08)*.66)).normalized()
   side=tangent.cross(normal).normalized();normal=side.cross(tangent).normalized()
   if old is not None and side.dot(old)<0:side=-side;normal=-normal
   old=side
@@ -482,12 +525,15 @@ for k in range(66):
  lock('rear curtain %02d'%k,points,.080+random.random()*.040,.032,8,random.choice([0,0,1,3]))
 # Prominent long front layers, separately sculpted on each side.
 for s in [-1,1]:
- for k in range(18):
-  t=k/17;ofs=(t-.5)*.37
+ for k in range(30):
+  t=k/29;ofs=(t-.5)*.78
   if s<0:
-   points=[(.19-.04*t,-.18-.13*t,6.16-.025*t),(-.36,-.57-.03*t,6.09-.12*t),(-.88,-.68-.03*t,5.60-.23*t),(-1.10+ofs*.2,.015-.04*t,4.82),(-1.10+ofs*.35,.09-.06*t,3.86),(-1.13+ofs*.55,-.48-.18*t,2.91),(-1.20+ofs,-.58-.16*t,2.13),(-1.45+ofs*.8,-.64-.13*t,1.26),(-1.52+ofs*.5,-.66-.12*t,.74),(-1.25+ofs,-.67-.10*t,.30+.35*t)]
+   points=[(.19-.04*t,-.18-.13*t,6.16-.025*t),(-.36,-.57-.03*t,6.09-.12*t),(-.88,-.68-.03*t,5.60-.23*t),(-1.10+ofs*.2,.015-.04*t,4.82),(-1.10+ofs*.35,.09-.06*t,3.86),(-1.13+ofs*.55,-.48-.18*t,2.91),(-1.20+ofs,-.58-.16*t,2.13),(-1.45+ofs*.8,-.64-.13*t,1.26),(-1.52+ofs*.5,-.66-.12*t,.74),(-1.25+ofs,-.67-.10*t,-.22+.46*t)]
   else:
-   points=[(.23+.04*t,-.17-.12*t,6.15-.02*t),(.71,-.57-.05*t,5.93-.06*t),(1.045,-.62-.03*t,5.24),(1.08+ofs*.1,-.42-.09*t,4.42),(1.11+ofs*.3,-.34-.10*t,3.55),(1.23+ofs*.55,-.47-.12*t,2.77),(1.37+ofs,-.61-.16*t,2.12),(1.55+ofs*.8,-.66-.13*t,1.49),(1.46+ofs*.8,-.69-.14*t,.94),(1.11+ofs,-.65-.1*t,.28+.40*t)]
+   points=[(.23+.04*t,-.17-.12*t,6.15-.02*t),(.71,-.57-.05*t,5.93-.06*t),(1.045,-.62-.03*t,5.24),(1.08+ofs*.1,-.42-.09*t,4.42),(1.11+ofs*.3,-.34-.10*t,3.55),(1.23+ofs*.55,-.47-.12*t,2.77),(1.37+ofs,-.61-.16*t,2.12),(1.55+ofs*.8,-.66-.13*t,1.49),(1.46+ofs*.8,-.69-.14*t,.94),(1.11+ofs,-.65-.1*t,.20+.47*t)]
+  for j,point in enumerate(points):
+   if point[2]<3.1:
+    u=max(0,min(1,(3.1-point[2])/3.25));wave=.11*sin(pi*u)*sin(2*pi*u+k*.23);points[j]=(point[0]+s*wave,point[1]+.035*sin(pi*u)*sin(2*pi*u+k*.17),point[2])
   lock(('left' if s<0 else 'right')+' front fall %02d'%k,points,.055+random.random()*.035,.027,14,random.choice([0,1,1,3]))
 # Short crown sweeps follow the off-center part and tuck behind the left ear.
 for sgn in [-1,1]:
@@ -521,12 +567,25 @@ for k in range(65):
 partmat=mat('Hair part | shaded scalp','72554A',.70)
 tube('Hair | narrow off-center scalp part',[(.19,.42,6.105),(.22,.20,6.168),(.25,-.05,6.175),(.27,-.28,6.124),(.29,-.48,6.045)],.0045,partmat,True,6,True,48)
 print('HAIR BUILT',flush=True)
+# The upper cranium is fuller than the initial blockout; the face itself is unchanged.
+for ob in head_objs:
+ if ob.type=='MESH':
+  for vertex in ob.data.vertices:
+   if vertex.co.z>5.30:vertex.co.z+=CFG.get('crown_fullness',.34)*((vertex.co.z-5.30)/.905)**2
+ if ob.name.startswith('Ear'):
+  meanx=ob.location.x+sum(v.co.x for v in ob.data.vertices)/len(ob.data.vertices)*ob.scale.x;ob.location.x+=(.055 if meanx>0 else -.055);ob.location.y-=.018
 # Pose is applied coherently to the complete head, ears, lids and hair.
 root=bpy.data.objects.new('Head pose | soft reference tilt',None);CHAR.objects.link(root);root.location=(0,0,3.72)
 bpy.context.view_layer.update()
 for ob in head_objs:
  matrix=ob.matrix_world.copy();ob.parent=root;ob.matrix_parent_inverse=root.matrix_world.inverted();ob.matrix_world=matrix
 root.rotation_euler.y=CFG.get('head_tilt',.095);root.rotation_euler.z=CFG.get('head_turn',.015)
+
+body_root=bpy.data.objects.new('Body pose | gentle counter-lean',None);CHAR.objects.link(body_root);body_root.location=(0,0,2.85);bpy.context.view_layer.update()
+for ob in list(CHAR.objects):
+ if ob.type=='MESH' and ob.parent is None:
+  matrix=ob.matrix_world.copy();ob.parent=body_root;ob.matrix_parent_inverse=body_root.matrix_world.inverted();ob.matrix_world=matrix
+body_root.rotation_euler.y=CFG.get('body_tilt',-.055)
 
 # Batch original geometry without changing its appearance. The procedural source retains every guide.
 bpy.context.view_layer.update()
@@ -543,6 +602,9 @@ for key,objects in groups.items():
   for modifier in list(ob.modifiers):bpy.ops.object.modifier_apply(modifier=modifier.name)
   ob.select_set(True)
  bpy.context.view_layer.objects.active=objects[0];bpy.ops.object.join();objects[0].name='Batched | '+key[0]
+ if key[0]==skin.name:
+  bm=bmesh.new();bm.from_mesh(objects[0].data);bmesh.ops.remove_doubles(bm,verts=list(bm.verts),dist=.000035);bm.normal_update();bm.to_mesh(objects[0].data);bm.free();objects[0].data.update()
+  print('Continuous face and lid boundaries welded',flush=True)
 print('GEOMETRY BATCHED',authored_object_count,'to',len(CHAR.objects),flush=True)
 
 # Studio is independent of the character export.
@@ -563,15 +625,15 @@ titlemat=mat('Studio typography | warm silver','BABCB2',.70)
 def textline(name,text,z,size):
  curve=bpy.data.curves.new(name,'FONT');curve.body=text;curve.align_x='CENTER';curve.size=size;curve.space_character=1.15;curve.extrude=0
  ob=bpy.data.objects.new(name,curve);STAGE.objects.link(ob);ob.data.materials.append(titlemat);ob.location=(0,-.05,z);ob.rotation_euler=(pi/2,0,0)
-textline('Title | model identity','GPT-6 ASTRA PRO',6.72,.125)
-textline('Subtitle | development tools','COLABDEV  /  BLENDER EEVEE',6.51,.065)
+textline('Title | model identity','GPT-6 ASTRA PRO',6.97,.125)
+textline('Subtitle | development tools','COLABDEV  /  BLENDER EEVEE',6.77,.065)
 camdata=bpy.data.cameras.new('Portrait camera');camera=bpy.data.objects.new('Portrait camera',camdata);STAGE.objects.link(camera);scene.camera=camera
-camera.data.type='ORTHO';camera.data.ortho_scale=7.30;camera.data.lens=85
+camera.data.type='ORTHO';camera.data.ortho_scale=7.55;camera.data.lens=85
 camera.data.clip_start=.05;camera.data.clip_end=200
-VIEWS={'front':((0,-15,3.8),(0,0,3.30)), 'three-quarter':((8,-13,4.2),(0,0,3.35)), 'side':((14,-1.7,4.1),(0,0,3.35)), 'back':((0,15,4.0),(0,0,3.35)), 'face':((0,-15,4.55),(0,-.15,4.63))}
+VIEWS={'front':((0,-15,3.8),(0,0,3.45)), 'three-quarter':((8,-13,4.2),(0,0,3.45)), 'side':((14,-1.7,4.1),(0,0,3.45)), 'back':((0,15,4.0),(0,0,3.45)), 'face':((0,-15,4.55),(0,-.15,4.63))}
 # Save an editable .blend, then render fast EEVEE review images.
 for idx,name in enumerate(args.views.split(',')):
- location,target=VIEWS[name];camera.location=location;camera.rotation_euler=(Vector(target)-camera.location).to_track_quat('-Z','Y').to_euler();camera.data.ortho_scale=3.35 if name=='face' else 7.30
+ location,target=VIEWS[name];camera.location=location;camera.rotation_euler=(Vector(target)-camera.location).to_track_quat('-Z','Y').to_euler();camera.data.ortho_scale=3.35 if name=='face' else 7.55
  if name=='face':scene.render.resolution_x=800;scene.render.resolution_y=960
  else:scene.render.resolution_x=CFG.get('width',720 if args.quality=='draft' else 1000);scene.render.resolution_y=CFG.get('height',1080 if args.quality=='draft' else 1500)
  if name!='front':
@@ -584,7 +646,7 @@ for idx,name in enumerate(args.views.split(',')):
  scene.render.filepath=str(REV/(name+'.png'))
  print('RENDERING',name,scene.render.filepath,flush=True);bpy.ops.render.render(write_still=True)
 # Reset the editable scene to the front portrait composition.
-camera.location=VIEWS['front'][0];camera.rotation_euler=(Vector(VIEWS['front'][1])-camera.location).to_track_quat('-Z','Y').to_euler();camera.data.ortho_scale=7.30
+camera.location=VIEWS['front'][0];camera.rotation_euler=(Vector(VIEWS['front'][1])-camera.location).to_track_quat('-Z','Y').to_euler();camera.data.ortho_scale=7.55
 for o in STAGE.objects:
  if o.type=='FONT':o.hide_render=False
 scene.render.resolution_x=1000;scene.render.resolution_y=1500;scene.render.filepath=str(LATEST/(PREFIX+'_portrait.png'))
@@ -601,6 +663,6 @@ if args.export:
   bpy.ops.export_scene.gltf(filepath=str(LATEST/(PREFIX+'.glb')),export_format='GLB',use_selection=True,export_apply=True,export_yup=True,export_animations=False,export_cameras=False,export_lights=False,export_texcoords=False,export_normals=True,export_colors=True,export_materials='EXPORT')
  except Exception as e:
   print('GLB_EXPORT_ERROR',repr(e),flush=True)
-stats={'revision':args.revision,'objects':len(CHAR.objects),'authored_objects_before_batching':authored_object_count,'mesh_vertices':sum(len(o.data.vertices) for o in CHAR.objects if o.type=='MESH'),'source':'all original procedural geometry','renderer':scene.render.engine,'config':CFG}
+stats={'revision':args.revision,'objects':len(CHAR.objects),'authored_objects_before_batching':authored_object_count,'mesh_polygons':sum(len(o.data.polygons) for o in CHAR.objects if o.type=='MESH'),'mesh_vertices':sum(len(o.data.vertices) for o in CHAR.objects if o.type=='MESH'),'source':'all original procedural geometry','renderer':scene.render.engine,'config':CFG}
 (REV/'build-report.json').write_text(json.dumps(stats,indent=2))
 print('BUILD_DONE',json.dumps(stats),flush=True)
