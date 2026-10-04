@@ -1,8 +1,8 @@
 {
-  "revision": 2,
-  "score": 28.0,
-  "status": "Connected bust \u2014 anatomy and hair defects identified",
-  "updated": "2026-10-04T11:09:50+00:00",
+  "revision": 3,
+  "score": 38.0,
+  "status": "Inset eyes and clean neckline \u2014 silhouette review",
+  "updated": "2026-10-04T11:18:32+00:00",
   "project": "/home/dev/project/3d/GPT6AstraPro_ColabDev_Blender_RgirlBust",
   "build": "/build/GPT6AstraPro_ColabDev_Blender_RgirlBust",
   "iterations": [
@@ -21,6 +21,14 @@
       "review": "Head transform is corrected. Eyes remain oversized and protrude unnaturally; scalp intersects the forehead; hair reads as rigid bright strips. Lower face and shirt opening need refinement. Reviewed front and close-up.",
       "image": "build/revisions/r002/front.png",
       "path": "/build/GPT6AstraPro_ColabDev_Blender_RgirlBust/revisions/r002/front.png"
+    },
+    {
+      "id": 3,
+      "score": 38.0,
+      "title": "Inset eyes and clean neckline \u2014 silhouette review",
+      "review": "Scalp intersections are reduced and the neckline is clean. Side view reveals an overly projecting nose and hair foundation clipping. Front curtain hides too much of the cheeks. Browser tests pass on desktop and mobile without JavaScript errors.",
+      "image": "build/revisions/r003/front.png",
+      "path": "/build/GPT6AstraPro_ColabDev_Blender_RgirlBust/revisions/r003/front.png"
     }
   ],
   "files": [
@@ -28,13 +36,13 @@
       "label": "Editable Blender scene",
       "url": "build/latest/GPT6AstraPro_ColabDev_Blender_RgirlBust.blend",
       "path": "/build/GPT6AstraPro_ColabDev_Blender_RgirlBust/latest/GPT6AstraPro_ColabDev_Blender_RgirlBust.blend",
-      "size": "40.7 MB"
+      "size": "41.7 MB"
     },
     {
       "label": "Interactive 3D model \u00b7 GLB",
       "url": "build/latest/GPT6AstraPro_ColabDev_Blender_RgirlBust.glb",
       "path": "/build/GPT6AstraPro_ColabDev_Blender_RgirlBust/latest/GPT6AstraPro_ColabDev_Blender_RgirlBust.glb",
-      "size": "14.1 MB"
+      "size": "14.6 MB"
     },
     {
       "label": "EEVEE portrait \u00b7 PNG",
@@ -51,8 +59,13 @@
   "views": [
     {
       "label": "Facial anatomy detail",
-      "url": "build/revisions/r002/face.png",
-      "path": "/build/GPT6AstraPro_ColabDev_Blender_RgirlBust/revisions/r002/face.png"
+      "url": "build/revisions/r003/face.png",
+      "path": "/build/GPT6AstraPro_ColabDev_Blender_RgirlBust/revisions/r003/face.png"
+    },
+    {
+      "label": "Side silhouette",
+      "url": "build/revisions/r003/side.png",
+      "path": "/build/GPT6AstraPro_ColabDev_Blender_RgirlBust/revisions/r003/side.png"
     }
   ]
 }
