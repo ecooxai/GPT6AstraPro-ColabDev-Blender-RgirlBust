@@ -129,8 +129,10 @@ def interp(table,z,col=1):
  if z>=table[-1][0]:return table[-1][col]
  for i in range(len(table)-1):
   if table[i][0]<=z<=table[i+1][0]:
-   a,b=table[i],table[i+1];t=(z-a[0])/(b[0]-a[0]);t=t*t*(3-2*t)
-   return a[col]*(1-t)+b[col]*t
+   a,b=table[i],table[i+1];t=(z-a[0])/(b[0]-a[0]);h=b[0]-a[0]
+   prev=table[max(0,i-1)];nxt=table[min(len(table)-1,i+2)]
+   m0=(b[col]-prev[col])/(b[0]-prev[0]);m1=(nxt[col]-a[col])/(nxt[0]-a[0])
+   return (2*t**3-3*t*t+1)*a[col]+(t**3-2*t*t+t)*h*m0+(-2*t**3+3*t*t)*b[col]+(t**3-t*t)*h*m1
 
 def gauss(x,z,cx,cz,wx,wz):return exp(-((x-cx)/wx)**2-((z-cz)/wz)**2)
 HEAD=[(3.10,.015,-.22,.32),(3.17,.25,-.57,.48),(3.29,.48,-.73,.61),(3.46,.69,-.81,.70),(3.64,.83,-.82,.79),(3.88,.96,-.80,.88),(4.12,1.015,-.79,.93),(4.37,1.045,-.765,.95),(4.62,1.04,-.735,.96),(4.87,1.03,-.75,.95),(5.12,1.015,-.79,.94),(5.42,1.01,-.78,.93),(5.67,.93,-.71,.85),(5.89,.70,-.51,.64),(6.06,.35,-.22,.35),(6.12,.008,.07,.09)]
@@ -468,8 +470,9 @@ tube('Hair | narrow off-center scalp part',[(.19,.42,6.105),(.22,.20,6.168),(.25
 print('HAIR BUILT',flush=True)
 # Pose is applied coherently to the complete head, ears, lids and hair.
 root=bpy.data.objects.new('Head pose | soft reference tilt',None);CHAR.objects.link(root);root.location=(0,0,3.72)
+bpy.context.view_layer.update()
 for ob in head_objs:
- matrix=ob.matrix_world.copy();ob.parent=root;ob.matrix_world=matrix
+ matrix=ob.matrix_world.copy();ob.parent=root;ob.matrix_parent_inverse=root.matrix_world.inverted();ob.matrix_world=matrix
 root.rotation_euler.y=CFG.get('head_tilt',.095);root.rotation_euler.z=CFG.get('head_turn',.015)
 
 # Studio is independent of the character export.
